@@ -1,0 +1,11 @@
+{
+    "name": "@agrid/cli",
+    "version": "1.0.0",
+    "description": "AgridJS CLI tools (placeholder)",
+    "main": "index.js",
+    "scripts": {
+        "build": "echo 'No build step for @agrid/cli'",
+        "test": "echo 'No tests yet for @agrid/cli'"
+    },
+    "license": "MIT"
+}

@@ -4,7 +4,7 @@ import {
 } from '../../../constants'
 import { PostHog } from '../../../posthog-core'
 import { FlagVariant, RemoteConfig, SessionRecordingPersistedConfig, SessionRecordingUrlTrigger } from '../../../types'
-import { isNullish, isBoolean, isString, isObject } from '@posthog/core'
+import { isNullish, isBoolean, isString, isObject } from '@agrid/core'
 import { window } from '../../../utils/globals'
 
 export const DISABLED = 'disabled'
@@ -30,7 +30,7 @@ export interface RecordingTriggersStatus {
 }
 
 export type TriggerType = 'url' | 'event'
-/* 
+/*
 triggers can have one of three statuses:
  * - trigger_activated: the trigger met conditions to start recording
  * - trigger_pending: the trigger is present, but the conditions are not yet met

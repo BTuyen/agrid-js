@@ -14,7 +14,7 @@ import {
   logFlushError,
   maybeAdd,
   FeatureFlagValue,
-} from '@posthog/core'
+} from '@agrid/core'
 import { PostHogRNStorage, PostHogRNSyncMemoryStorage } from './storage'
 import { version } from './version'
 import { buildOptimisiticAsyncStorage, getAppProperties } from './native-deps'

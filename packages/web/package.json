@@ -1,12 +1,7 @@
 {
-  "name": "posthog-js-lite",
+  "name": "agrid-js-lite",
   "version": "4.1.10",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/PostHog/posthog-js.git",
-    "directory": "packages/web"
-  },
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -26,11 +21,11 @@
     "src"
   ],
   "dependencies": {
-    "@posthog/core": "workspace:*"
+    "@agrid/core": "workspace:*"
   },
   "devDependencies": {
-    "@posthog-tooling/tsconfig-base": "workspace:*",
-    "@posthog-tooling/rollup-utils": "workspace:*",
+    "@agrid-tooling/tsconfig-base": "workspace:*",
+    "@agrid-tooling/rollup-utils": "workspace:*",
     "jest": "catalog:",
     "jest-environment-jsdom": "catalog:"
   }

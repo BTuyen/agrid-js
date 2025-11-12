@@ -5,7 +5,6 @@
 ### Major Changes
 
 - [#2554](https://github.com/PostHog/posthog-js/pull/2554) [`8e8d2f5`](https://github.com/PostHog/posthog-js/commit/8e8d2f530f0676463b6e36a710f4301119960e2e) Thanks [@carlos-marchal-ph](https://github.com/carlos-marchal-ph)! - Update LLM provider SDKs to latest versions
-
   - `openai`: **5.20.1 → 6.8.1**
   - `@anthropic-ai/sdk`: 0.63.1 → 0.67.0
   - `@google/genai`: 1.19.0 → 1.29.0

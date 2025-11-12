@@ -9,8 +9,9 @@ main {
     font-family: helvetica, arial, sans-serif;
 }
 
-html, body {
-    margin: 0
+html,
+body {
+    margin: 0;
 }
 
 h1 {
@@ -23,7 +24,6 @@ h2 {
     margin-bottom: 1rem;
 }
 
-
 a {
     color: rgb(9, 105, 218);
     text-decoration: none;
@@ -34,16 +34,16 @@ a {
     }
 }
 
-button, .Button {
+button,
+.Button {
     padding: 0.5rem 1rem;
     border: none;
     border-radius: 0.25rem;
     cursor: pointer;
     font-weight: 600;
-    background-color: rgba(0,0,0,.1);
+    background-color: rgba(0, 0, 0, 0.1);
 
     &:hover {
-        background-color: rgba(0,0,0,.2);
+        background-color: rgba(0, 0, 0, 0.2);
     }
 }
-

@@ -29,4 +29,4 @@ The PostHog project key and API host are loaded from a `.env` file in the root o
     POSTHOG_PROJECT_KEY=<your-project-key>
     POSTHOG_API_HOST=<your-api-host>
     ```
-    If `POSTHOG_API_HOST` is not set, it will default to `http://localhost:8010`. 
+    If `POSTHOG_API_HOST` is not set, it will default to `http://localhost:8010`.

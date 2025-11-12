@@ -1,4 +1,4 @@
-import { withPostHogConfig } from '@posthog/nextjs-config'
+import { withPostHogConfig } from '@agrid/nextjs-config'
 import packageJson from './package.json' with { type: 'json' }
 
 const nextConfig = {

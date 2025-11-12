@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { PostHogCaptureOnViewed } from '@posthog/react'
+import { PostHogCaptureOnViewed } from '@agrid/react'
 
 const catImages = Array.from({ length: 120 }, (_, i) => ({
     id: i + 1,

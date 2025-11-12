@@ -13,7 +13,7 @@ npm install @posthog/ai
 ## Usage
 
 ```typescript
-import { OpenAI } from '@posthog/ai'
+import { OpenAI } from '@agrid/ai'
 import { PostHog } from 'posthog-node'
 
 const phClient = new PostHog('<YOUR_PROJECT_API_KEY>', { host: 'https://us.i.posthog.com' })

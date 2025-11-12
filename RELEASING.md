@@ -3,6 +3,7 @@
 Releases are managed with changeset, you can find more information on the [changeset repository](https://github.com/changesets/changesets).
 
 Before submitting a PR, create a changeset by running:
+
 ```
 pnpm changeset
 ```

@@ -1,5 +1,5 @@
 {
-  "name": "posthog-react-native",
+  "name": "@agrid/react-native",
   "version": "4.10.8",
   "license": "MIT",
   "main": "dist/index.js",
@@ -9,7 +9,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PostHog/posthog-js.git",
+    "url": "https://github.com/BTuyen/agrid-js.git",
     "directory": "packages/react-native"
   },
   "scripts": {
@@ -24,13 +24,13 @@
     "generate-references": "pnpm exec api-extractor run --config ./api-extractor.json --local && node scripts/generate-docs.js"
   },
   "dependencies": {
-    "@posthog/core": "workspace:*"
+    "@agrid/core": "workspace:*"
   },
   "devDependencies": {
     "@babel/cli": "^7.19.3",
     "@babel/plugin-transform-private-property-in-object": "^7.27.1",
-    "@posthog-tooling/rollup-utils": "workspace:*",
-    "@posthog-tooling/tsconfig-base": "workspace:*",
+    "@agrid-tooling/rollup-utils": "workspace:*",
+    "@agrid-tooling/tsconfig-base": "workspace:*",
     "@react-native-async-storage/async-storage": "^1.17.10",
     "@react-native/babel-preset": "^0.80.1",
     "@react-navigation/native": "^5.0.10",
@@ -44,7 +44,7 @@
     "jest": "catalog:",
     "jest-environment-node": "catalog:",
     "jest-expo": "catalog:",
-    "posthog-react-native-session-replay": "^1.2.0",
+    "@agrid/react-native-session-replay": "workspace:*",
     "react": "18.2.0",
     "react-native": "^0.69.1",
     "react-native-device-info": "^10.3.0",
@@ -57,17 +57,17 @@
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": ">=1.0.0",
-    "@react-navigation/native": ">= 5.0.0",
-    "expo-application": ">= 4.0.0",
-    "expo-device": ">= 4.0.0",
-    "expo-file-system": ">= 13.0.0",
-    "expo-localization": ">= 11.0.0",
-    "posthog-react-native-session-replay": ">= 1.2.0",
-    "react-native-device-info": ">= 10.0.0",
-    "react-native-localize": ">= 3.0.0",
-    "react-native-navigation": ">= 6.0.0",
-    "react-native-safe-area-context": ">= 4.0.0",
-    "react-native-svg": ">= 15.0.0"
+    "@react-navigation/native": ">=5.0.0",
+    "expo-application": ">=4.0.0",
+    "expo-device": ">=4.0.0",
+    "expo-file-system": ">=13.0.0",
+    "expo-localization": ">=11.0.0",
+    "@agrid/react-native-session-replay": ">=1.2.0",
+    "react-native-device-info": ">=10.0.0",
+    "react-native-localize": ">=3.0.0",
+    "react-native-navigation": ">=6.0.0",
+    "react-native-safe-area-context": ">=4.0.0",
+    "react-native-svg": ">=15.0.0"
   },
   "peerDependenciesMeta": {
     "@react-native-async-storage/async-storage": {
@@ -97,7 +97,7 @@
     "react-native-localize": {
       "optional": true
     },
-    "posthog-react-native-session-replay": {
+    "@agrid/react-native-session-replay": {
       "optional": true
     },
     "react-native-safe-area-context": {

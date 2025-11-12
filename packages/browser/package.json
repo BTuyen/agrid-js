@@ -1,8 +1,8 @@
 {
-    "name": "posthog-js",
+    "name": "@agrid/browser",
     "version": "1.290.0",
-    "description": "Posthog-js allows you to automatically capture usage and send events to PostHog.",
-    "repository": "https://github.com/PostHog/posthog-js",
+    "description": "Agrid-JS browser SDK — forked from PostHog-js for client-side analytics.",
+    "repository": "https://github.com/BTuyen/agrid-js",
     "author": "hey@posthog.com",
     "license": "SEE LICENSE IN LICENSE",
     "homepage": "https://posthog.com/docs/libraries/js",
@@ -49,13 +49,15 @@
         "react/package.json"
     ],
     "dependencies": {
+        "@agrid/core": "workspace:*",
         "core-js": "^3.38.1",
         "fflate": "^0.4.8",
         "preact": "^10.19.3",
-        "web-vitals": "^4.2.4",
-        "@posthog/core": "workspace:*"
+        "web-vitals": "^4.2.4"
     },
     "devDependencies": {
+        "@agrid-tooling/rollup-utils": "workspace:*",
+        "@agrid-tooling/tsconfig-base": "workspace:*",
         "@babel/core": "7.27.1",
         "@babel/plugin-syntax-decorators": "^7.27.1",
         "@babel/plugin-transform-exponentiation-operator": "^7.27.1",
@@ -68,7 +70,6 @@
         "@posthog/rrweb-plugin-console-record": "^0.0.27",
         "@posthog/rrweb-record": "^0.0.27",
         "@posthog/rrweb-types": "^0.0.27",
-        "@posthog-tooling/rollup-utils": "workspace:*",
         "@rollup/plugin-babel": "^6.0.4",
         "@rollup/plugin-commonjs": "^28.0.6",
         "@rollup/plugin-json": "^6.1.0",
@@ -85,7 +86,8 @@
         "@types/dotenv": "^8.2.3",
         "@types/jest": "^29.5.12",
         "@types/node": "^22.5.0",
-        "@types/react-dom": "^18.0.10",
+        "@types/react": "^19.2.3",
+        "@types/react-dom": "^18.3.7",
         "@types/sinon": "^17.0.1",
         "@types/web": "^0.0.222",
         "babel-jest": "^29.7.0",

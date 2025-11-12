@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "baseUrl": ".",
+        "paths": {
+            "@agrid/core": ["packages/core/src"],
+            "@agrid/utils": ["packages/utils/src"],
+            "@agrid/react": ["packages/react/src"],
+            "@agrid/node": ["packages/node/src"]
+        }
+    }
+}

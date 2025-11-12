@@ -1,4 +1,4 @@
-const HOG_REF = '0.3';
+const HOG_REF = '0.3'
 
 const PROPERTIES_EXAMPLE = `// Properties is a Record<string, Property> 
 // Below are PostHog's default properties, you can add your own properties during capture
@@ -45,7 +45,7 @@ const PROPERTIES_EXAMPLE = `// Properties is a Record<string, Property>
     $plugins_failed: ['plugin3'],
     $plugins_deferred: ['plugin4'],
     $ip: '192.168.1.1'
-}`;
+}`
 
 const PROPERTY_EXAMPLE = `// It can be a string
 "max@example.com"
@@ -59,6 +59,5 @@ const PROPERTY_EXAMPLE = `// It can be a string
 module.exports = {
     HOG_REF,
     PROPERTIES_EXAMPLE,
-    PROPERTY_EXAMPLE
-}; 
-
+    PROPERTY_EXAMPLE,
+}

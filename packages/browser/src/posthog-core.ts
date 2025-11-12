@@ -99,7 +99,7 @@ import {
     isEmptyObject,
     isObject,
     isBoolean,
-} from '@posthog/core'
+} from '@agrid/core'
 import { uuidv7 } from './uuidv7'
 import { WebExperiments } from './web-experiments'
 import { ExternalIntegrations } from './extensions/external-integration'
@@ -584,7 +584,8 @@ export class PostHog {
                 .filter((flag) => !!config.bootstrap?.featureFlags?.[flag])
                 .reduce(
                     (res: Record<string, string | boolean>, key) => (
-                        (res[key] = config.bootstrap?.featureFlags?.[key] || false), res
+                        (res[key] = config.bootstrap?.featureFlags?.[key] || false),
+                        res
                     ),
                     {}
                 )

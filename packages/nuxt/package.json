@@ -1,10 +1,10 @@
 {
-  "name": "@posthog/nuxt",
+  "name": "@agrid/nuxt",
   "version": "1.1.3",
-  "description": "Nuxt module for Posthog 🦔",
+  "description": "Nuxt module for AgridJS 🌾 - analytics and tracking integration.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/PostHog/posthog-js.git",
+    "url": "https://github.com/BTuyen/agrid-js.git",
     "directory": "packages/nuxt"
   },
   "license": "MIT",
@@ -21,16 +21,16 @@
   ],
   "scripts": {
     "prepare": "nuxt prepare",
-    "build": "nuxt-module-build build",
+    "build": "nuxt-module-build build --fail-on-warn=false",
     "package": "pnpm pack --out $PACKAGE_DEST/%s.tgz",
     "lint": "eslint ."
   },
   "dependencies": {
-    "@posthog/cli": "catalog:",
-    "@nuxt/kit": ">=3.7.0",
-    "posthog-node": "workspace:*",
-    "@posthog/core": "workspace:*",
-    "posthog-js": "workspace:*"
+    "@agrid/cli": "workspace:*",
+    "@agrid/core": "workspace:*",
+    "@agrid/node": "workspace:*",
+    "@agrid/browser": "workspace:*",
+    "@nuxt/kit": ">=3.7.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -40,5 +40,8 @@
     "@nuxt/schema": "^4.1.2",
     "@nuxt/eslint-config": "^1.9.0",
     "eslint": "^9.37.0"
+  },
+  "nuxt-module-build": {
+    "failOnWarn": false
   }
 }

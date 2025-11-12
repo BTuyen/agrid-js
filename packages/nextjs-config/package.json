@@ -1,16 +1,16 @@
 {
-  "name": "@posthog/nextjs-config",
+  "name": "@agrid/nextjs-config",
   "version": "1.4.0",
-  "description": "NextJS configuration helper for Posthog 🦔",
+  "description": "NextJS configuration helper for AgridJS 🌾",
   "repository": {
     "type": "git",
-    "url": "https://github.com/PostHog/posthog-js.git",
+    "url": "https://github.com/BTuyen/agrid-js.git",
     "directory": "packages/nextjs-config"
   },
   "author": {
-    "name": "PostHog",
-    "email": "hey@posthog.com",
-    "url": "https://posthog.com"
+    "name": "AgridJS",
+    "email": "dev@agrid.io",
+    "url": "https://agrid.io"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -42,17 +42,18 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@posthog/cli": "catalog:",
-    "semver": "^7.7.2",
-    "@posthog/core": "workspace:*"
+    "@agrid/core": "workspace:*",
+    "semver": "^7.7.2"
   },
   "keywords": [
-    "posthog",
-    "nextjs"
+    "agrid",
+    "nextjs",
+    "analytics",
+    "sdk"
   ],
   "devDependencies": {
-    "@posthog-tooling/rollup-utils": "workspace:*",
-    "@posthog-tooling/tsconfig-base": "workspace:*",
+    "@agrid-tooling/rollup-utils": "workspace:*",
+    "@agrid-tooling/tsconfig-base": "workspace:*",
     "@rslib/core": "catalog:",
     "@types/node": "^22.15.23",
     "@types/semver": "^7.7.0",

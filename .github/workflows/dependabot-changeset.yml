@@ -1,17 +1,17 @@
 name: Auto update changeset
 on: pull_request
 jobs:
-  changeset:
-    runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Generate changeset
-        uses: the-guild-org/changesets-dependencies-action@v1.1.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    changeset:
+        runs-on: ubuntu-latest
+        if: github.actor == 'dependabot[bot]'
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - name: Generate changeset
+              uses: the-guild-org/changesets-dependencies-action@v1.1.0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

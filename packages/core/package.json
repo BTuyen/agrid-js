@@ -1,5 +1,5 @@
 {
-  "name": "@posthog/core",
+  "name": "@agrid/core",
   "version": "1.5.2",
   "license": "MIT",
   "main": "dist/index.js",
@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/PostHog/posthog-js.git",
+    "url": "https://github.com/BTuyen/agrid-js.git",
     "directory": "packages/core"
   },
   "files": [

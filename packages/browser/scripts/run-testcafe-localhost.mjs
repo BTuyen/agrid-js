@@ -13,10 +13,14 @@ const args = process.argv.slice(3)
 
 async function main() {
     if (!POSTHOG_API_KEY) {
-        throw new Error('POSTHOG_API_KEY env variable is required (create a new all access API key at http://localhost:8000/project/1/settings/user-api-keys)')
+        throw new Error(
+            'POSTHOG_API_KEY env variable is required (create a new all access API key at http://localhost:8000/project/1/settings/user-api-keys)'
+        )
     }
-     if (!POSTHOG_PROJECT_KEY) {
-        throw new Error('POSTHOG_PROJECT_KEY env variable is required (see Project API Key http://localhost:8000/project/1/settings/project)')
+    if (!POSTHOG_PROJECT_KEY) {
+        throw new Error(
+            'POSTHOG_PROJECT_KEY env variable is required (see Project API Key http://localhost:8000/project/1/settings/project)'
+        )
     }
 
     console.log('Running testcafe tests on localhost')

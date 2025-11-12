@@ -1,0 +1,11 @@
+{
+    "name": "@agrid/react-native-session-replay",
+    "version": "1.0.0",
+    "description": "Agrid React Native session replay module (placeholder).",
+    "main": "index.js",
+    "license": "MIT",
+    "scripts": {
+        "build": "echo 'No build step for @agrid/react-native-session-replay'",
+        "test": "echo 'No tests yet for @agrid/react-native-session-replay'"
+    }
+}

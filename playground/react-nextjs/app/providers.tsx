@@ -1,7 +1,7 @@
 'use client'
 
 import posthog, { CaptureResult } from 'posthog-js'
-import { PostHogProvider } from '@posthog/react'
+import { PostHogProvider } from '@agrid/react'
 import { useEffect, useState } from 'react'
 import { EventDisplay } from './EventDisplay'
 

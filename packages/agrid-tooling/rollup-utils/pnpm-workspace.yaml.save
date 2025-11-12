@@ -1,0 +1,6 @@
+packages:
+  - packages/*
+  - packages/agrid-tooling/*
+  - "!**/playground/**"
+  - "!**/examples/**"
+

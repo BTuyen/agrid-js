@@ -1,11 +1,16 @@
 {
-  "name": "@posthog/ai",
+  "name": "@agrid/ai",
   "version": "7.0.0",
-  "description": "PostHog Node.js AI integrations",
+  "description": "AgridJS Node.js AI integrations — unified SDK for OpenAI, Gemini, Anthropic, and LangChain.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PostHog/posthog-js.git",
+    "url": "git+https://github.com/BTuyen/agrid-js.git",
     "directory": "packages/ai"
+  },
+  "author": {
+    "name": "AgridJS",
+    "email": "dev@agrid.io",
+    "url": "https://agrid.io"
   },
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
@@ -21,25 +26,6 @@
     "prepublishOnly": "pnpm lint && pnpm test:unit && pnpm build",
     "package": "pnpm pack --out $PACKAGE_DEST/%s.tgz"
   },
-  "devDependencies": {
-    "@posthog-tooling/rollup-utils": "workspace:*",
-    "@posthog-tooling/tsconfig-base": "workspace:*",
-    "jest": "catalog:",
-    "node-fetch": "^3.3.2",
-    "posthog-node": "workspace:*"
-  },
-  "keywords": [
-    "posthog",
-    "ai",
-    "openai",
-    "anthropic",
-    "gemini",
-    "llm",
-    "observability"
-  ],
-  "engines": {
-    "node": ">=20"
-  },
   "dependencies": {
     "@ai-sdk/provider": "^2.0.0",
     "@anthropic-ai/sdk": "^0.67.0",
@@ -52,7 +38,27 @@
     "zod": "^4.1.8"
   },
   "peerDependencies": {
-    "posthog-node": "^5.0.0"
+    "@agrid/node": "workspace:*"
+  },
+  "devDependencies": {
+    "@agrid-tooling/rollup-utils": "workspace:*",
+    "@agrid-tooling/tsconfig-base": "workspace:*",
+    "@agrid/node": "workspace:*",
+    "jest": "catalog:",
+    "node-fetch": "^3.3.2"
+  },
+  "keywords": [
+    "agrid",
+    "ai",
+    "openai",
+    "anthropic",
+    "gemini",
+    "langchain",
+    "llm",
+    "analytics"
+  ],
+  "engines": {
+    "node": ">=20"
   },
   "files": [
     "dist"
@@ -88,14 +94,5 @@
       "import": "./dist/langchain/index.mjs",
       "types": "./dist/langchain/index.d.ts"
     }
-  },
-  "directories": {
-    "lib": "lib",
-    "test": "tests"
-  },
-  "author": "PostHog",
-  "bugs": {
-    "url": "https://github.com/PostHog/posthog-js-lite/issues"
-  },
-  "homepage": "https://github.com/PostHog/posthog-js-lite#readme"
+  }
 }

@@ -70,4 +70,4 @@ Each example will automatically trigger a CSP violation when the page loads, whi
 
 The server sets a Content Security Policy header that restricts what resources can be loaded. When a resource violates this policy, the browser will send a report to the specified `report-uri` endpoint.
 
-This playground is useful for testing how CSP violation reports are processed by your PostHog instance. 
+This playground is useful for testing how CSP violation reports are processed by your PostHog instance.

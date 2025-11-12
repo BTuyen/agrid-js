@@ -8,6 +8,7 @@ cargo install posthog-cli
 ```
 
 From the project root directory:
+
 ```shell
 # Install deps
 pnpm install
@@ -19,6 +20,7 @@ pnpm run build-posthog
 ## Sourcemaps management
 
 Commands to test sourcemap upload:
+
 ```shell
 # Generate build artifacts and use posthog-cli to inject snippets into sources and sourcemaps
 VITE_POSTHOG_KEY='<your-project-key>' VITE_POSTHOG_HOST='http://localhost:8010' pnpm run build

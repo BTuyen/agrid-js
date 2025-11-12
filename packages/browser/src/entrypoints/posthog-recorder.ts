@@ -1,5 +1,5 @@
-import { record as rrwebRecord } from '@posthog/rrweb-record'
-import { getRecordConsolePlugin } from '@posthog/rrweb-plugin-console-record'
+import { record as rrwebRecord } from '@agrid/rrweb-record'
+import { getRecordConsolePlugin } from '@agrid/rrweb-plugin-console-record'
 import { assignableWindow } from '../utils/globals'
 import { getRecordNetworkPlugin } from '../extensions/replay/external/network-plugin'
 import { LazyLoadedSessionRecording } from '../extensions/replay/external/lazy-loaded-session-recorder'

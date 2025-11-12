@@ -137,7 +137,6 @@ The example includes a comprehensive flag dependencies demonstration showing:
 For the best experience, create these flags in your PostHog instance:
 
 1. **`beta-feature`** flag:
-
     - Condition: `email` contains `@example.com`
     - Rollout: 100%
 

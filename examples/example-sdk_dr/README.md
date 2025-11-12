@@ -21,7 +21,6 @@ Sends events to tests SDK Doctor's ability to detect feature flags called events
 ## Usage
 
 1. **Configure your PostHog API key:**
-
     - Open the HTML file in a text editor
     - Find the `API_KEY` constant near the top of the `<script>` section
     - Replace `'YOUR_POSTHOG_API_KEY'` with your PostHog project API key (`phc_...`)
