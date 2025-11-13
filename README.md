@@ -107,9 +107,16 @@ posthog.capture({
 
 ## 📚 Tài liệu
 
+### Tài liệu tích hợp
+- **[Quick Start Guide](./docs/QUICK_START.md)** - Bắt đầu trong 5 phút
+- **[Integration Guide](./docs/INTEGRATION_GUIDE.md)** - Hướng dẫn tích hợp chi tiết cho JS thuần và ReactJS
+- **[Web 2Nông Integration](./docs/WEB2NONG_INTEGRATION.md)** - Hướng dẫn tích hợp cụ thể cho Web 2Nông
+
+### Tài liệu tham khảo
 - [Agrid JS Documentation](https://agridhub.vn/docs/agrid-js)
 - [React SDK Documentation](https://agrid.dev/docs/libraries/react)
 - [API Reference](./packages/browser/README.md)
+- [Tất cả tài liệu](./docs/README.md)
 
 ## 🛠️ Development
 
@@ -203,6 +210,8 @@ MIT License - xem [LICENSE](./LICENSE) để biết thêm chi tiết.
 Agrid JS được fork từ [PostHog JS](https://github.com/PostHog/posthog-js) và được tùy chỉnh cho nền tảng Agrid.
 
 Cảm ơn PostHog team đã tạo ra một codebase tuyệt vời!
+
+📖 Xem thêm: [Fork Notes](./docs/FORK_NOTES.md) để biết chi tiết về các thay đổi.
 
 ---
 
