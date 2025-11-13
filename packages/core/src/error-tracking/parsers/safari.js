@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractSafariExtensionDetails = void 0;
-var base_1 = require("./base");
+const base_1 = require("./base");
 /**
  * Safari web extensions, starting version unknown, can produce "frames-only" stacktraces.
  * What it means, is that instead of format like:
@@ -22,13 +22,13 @@ var base_1 = require("./base");
  * Unfortunately "just" changing RegExp is too complicated now and making it pass all tests
  * and fix this case seems like an impossible, or at least way too time-consuming task.
  */
-var extractSafariExtensionDetails = function (func, filename) {
-    var isSafariExtension = func.indexOf('safari-extension') !== -1;
-    var isSafariWebExtension = func.indexOf('safari-web-extension') !== -1;
+const extractSafariExtensionDetails = (func, filename) => {
+    const isSafariExtension = func.indexOf('safari-extension') !== -1;
+    const isSafariWebExtension = func.indexOf('safari-web-extension') !== -1;
     return isSafariExtension || isSafariWebExtension
         ? [
             func.indexOf('@') !== -1 ? func.split('@')[0] : base_1.UNKNOWN_FUNCTION,
-            isSafariExtension ? "safari-extension:".concat(filename) : "safari-web-extension:".concat(filename),
+            isSafariExtension ? `safari-extension:${filename}` : `safari-web-extension:${filename}`,
         ]
         : [func, filename];
 };

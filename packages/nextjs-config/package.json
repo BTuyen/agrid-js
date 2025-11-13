@@ -54,7 +54,7 @@
   "devDependencies": {
     "@agrid-tooling/rollup-utils": "workspace:*",
     "@agrid-tooling/tsconfig-base": "workspace:*",
-    "@rslib/core": "catalog:",
+    "@rslib/core": "0.17.1",
     "@types/node": "^22.15.23",
     "@types/semver": "^7.7.0",
     "jest": "catalog:",

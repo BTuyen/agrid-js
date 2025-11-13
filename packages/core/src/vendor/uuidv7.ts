@@ -287,6 +287,7 @@ export class V7Generator {
    */
   generate(): UUID {
     return this.generateOrResetCore(Date.now(), 10_000);
+
   }
 
   /**

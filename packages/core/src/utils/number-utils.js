@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.clampToRange = clampToRange;
-var type_utils_1 = require("./type-utils");
+const type_utils_1 = require("./type-utils");
 /**
  * Clamps a value to a range.
  * @param value the value to clamp

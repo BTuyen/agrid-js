@@ -1,15 +1,18 @@
 {
-    "extends": "../../tsconfig.base.json",
-    "compilerOptions": {
-      "target": "ES2019",
-      "module": "NodeNext",
-      "moduleResolution": "NodeNext",
-      "outDir": "dist",
-      "declaration": true,
-      "sourceMap": true,
-      "esModuleInterop": true,
-      "skipLibCheck": true
-    },
-    "include": ["src/**/*.js"],
-    "exclude": ["dist", "node_modules"]
-  }
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "target": "ES2019",
+    "lib": ["DOM", "ESNext"],
+    "moduleResolution": "Node",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "strict": true
+  },
+  "references": [{ "path": "../core" }],
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules", "**/*.spec.ts"]
+}

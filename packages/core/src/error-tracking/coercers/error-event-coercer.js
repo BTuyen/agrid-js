@@ -1,16 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ErrorEventCoercer = void 0;
-var utils_1 = require("@/utils");
-var ErrorEventCoercer = /** @class */ (function () {
-    function ErrorEventCoercer() {
-    }
-    ErrorEventCoercer.prototype.match = function (err) {
+const utils_1 = require("@/utils");
+class ErrorEventCoercer {
+    constructor() { }
+    match(err) {
         return (0, utils_1.isErrorEvent)(err) && err.error != undefined;
-    };
-    ErrorEventCoercer.prototype.coerce = function (err, ctx) {
+    }
+    coerce(err, ctx) {
         var _a;
-        var exceptionLike = ctx.apply(err.error);
+        const exceptionLike = ctx.apply(err.error);
         if (!exceptionLike) {
             return {
                 type: 'ErrorEvent',
@@ -22,8 +21,7 @@ var ErrorEventCoercer = /** @class */ (function () {
         else {
             return exceptionLike;
         }
-    };
-    return ErrorEventCoercer;
-}());
+    }
+}
 exports.ErrorEventCoercer = ErrorEventCoercer;
 //# sourceMappingURL=error-event-coercer.js.map

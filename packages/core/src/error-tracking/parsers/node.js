@@ -1,29 +1,29 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.nodeStackLineParser = void 0;
-var base_1 = require("./base");
+const base_1 = require("./base");
 /** Node Stack line parser */
-var FILENAME_MATCH = /^\s*[-]{4,}$/;
-var FULL_MATCH = /at (?:async )?(?:(.+?)\s+\()?(?:(.+):(\d+):(\d+)?|([^)]+))\)?/;
-var nodeStackLineParser = function (line) {
+const FILENAME_MATCH = /^\s*[-]{4,}$/;
+const FULL_MATCH = /at (?:async )?(?:(.+?)\s+\()?(?:(.+):(\d+):(\d+)?|([^)]+))\)?/;
+const nodeStackLineParser = (line) => {
     var _a;
-    var lineMatch = line.match(FULL_MATCH);
+    const lineMatch = line.match(FULL_MATCH);
     if (lineMatch) {
-        var object = void 0;
-        var method = void 0;
-        var functionName = void 0;
-        var typeName = void 0;
-        var methodName = void 0;
+        let object;
+        let method;
+        let functionName;
+        let typeName;
+        let methodName;
         if (lineMatch[1]) {
             functionName = lineMatch[1];
-            var methodStart = functionName.lastIndexOf('.');
+            let methodStart = functionName.lastIndexOf('.');
             if (functionName[methodStart - 1] === '.') {
                 methodStart--;
             }
             if (methodStart > 0) {
                 object = functionName.slice(0, methodStart);
                 method = functionName.slice(methodStart + 1);
-                var objectEnd = object.indexOf('.Module');
+                const objectEnd = object.indexOf('.Module');
                 if (objectEnd > 0) {
                     functionName = functionName.slice(objectEnd + 1);
                     object = object.slice(0, objectEnd);
@@ -41,10 +41,10 @@ var nodeStackLineParser = function (line) {
         }
         if (functionName === undefined) {
             methodName = methodName || base_1.UNKNOWN_FUNCTION;
-            functionName = typeName ? "".concat(typeName, ".").concat(methodName) : methodName;
+            functionName = typeName ? `${typeName}.${methodName}` : methodName;
         }
-        var filename = ((_a = lineMatch[2]) === null || _a === void 0 ? void 0 : _a.startsWith('file://')) ? lineMatch[2].slice(7) : lineMatch[2];
-        var isNative = lineMatch[5] === 'native';
+        let filename = ((_a = lineMatch[2]) === null || _a === void 0 ? void 0 : _a.startsWith('file://')) ? lineMatch[2].slice(7) : lineMatch[2];
+        const isNative = lineMatch[5] === 'native';
         // If it's a Windows path, trim the leading slash so that `/C:/foo` becomes `C:/foo`
         if (filename === null || filename === void 0 ? void 0 : filename.match(/\/[A-Z]:/)) {
             filename = filename.slice(1);
@@ -74,9 +74,8 @@ exports.nodeStackLineParser = nodeStackLineParser;
 /**
  * Does this filename look like it's part of the app code?
  */
-function filenameIsInApp(filename, isNative) {
-    if (isNative === void 0) { isNative = false; }
-    var isInternal = isNative ||
+function filenameIsInApp(filename, isNative = false) {
+    const isInternal = isNative ||
         (filename &&
             // It's not internal if it's an absolute linux path
             !filename.startsWith('/') &&

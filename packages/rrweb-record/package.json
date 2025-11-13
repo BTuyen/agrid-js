@@ -4,6 +4,6 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc -b"
+    "build": "echo 'No build step for @agrid/rrweb-record'"
   }
 }

@@ -6,7 +6,7 @@ exports.isDistinctIdStringLike = isDistinctIdStringLike;
 function includes(str, needle) {
     return str.indexOf(needle) !== -1;
 }
-var trim = function (str) {
+const trim = function (str) {
     // Previous implementation was using underscore's trim function.
     // When switching to just using the native trim() function, we ran some tests to make sure that it was able to trim both the BOM character \uFEFF and the NBSP character \u00A0.
     // We tested modern Chrome (134.0.6998.118) and Firefox (136.0.2), and IE11 running on Windows 10, and all of them were able to trim both characters.
@@ -16,7 +16,7 @@ var trim = function (str) {
 exports.trim = trim;
 // UNDERSCORE
 // Embed part of the Underscore Library
-var stripLeadingDollar = function (s) {
+const stripLeadingDollar = function (s) {
     return s.replace(/^\$/, '');
 };
 exports.stripLeadingDollar = stripLeadingDollar;

@@ -57,5 +57,11 @@
             "outputs": ["references/**"],
             "cache": false
         }
+    },
+    "tasks": {
+        "build": {
+        "dependsOn": ["^build"],
+        "outputs": ["dist/**", "build/**", "lib/**", "!**/node_modules/**"]
+        }
     }
 }

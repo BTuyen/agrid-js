@@ -3,33 +3,33 @@
 // Licensed under the MIT License
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getFilenameToChunkIdMap = getFilenameToChunkIdMap;
-var parsedStackResults;
-var lastKeysCount;
-var cachedFilenameChunkIds;
+let parsedStackResults;
+let lastKeysCount;
+let cachedFilenameChunkIds;
 function getFilenameToChunkIdMap(stackParser) {
-    var chunkIdMap = globalThis._posthogChunkIds;
+    const chunkIdMap = globalThis._posthogChunkIds;
     if (!chunkIdMap) {
         return undefined;
     }
-    var chunkIdKeys = Object.keys(chunkIdMap);
+    const chunkIdKeys = Object.keys(chunkIdMap);
     if (cachedFilenameChunkIds && chunkIdKeys.length === lastKeysCount) {
         return cachedFilenameChunkIds;
     }
     lastKeysCount = chunkIdKeys.length;
-    cachedFilenameChunkIds = chunkIdKeys.reduce(function (acc, stackKey) {
+    cachedFilenameChunkIds = chunkIdKeys.reduce((acc, stackKey) => {
         if (!parsedStackResults) {
             parsedStackResults = {};
         }
-        var result = parsedStackResults[stackKey];
+        const result = parsedStackResults[stackKey];
         if (result) {
             acc[result[0]] = result[1];
         }
         else {
-            var parsedStack = stackParser(stackKey);
-            for (var i = parsedStack.length - 1; i >= 0; i--) {
-                var stackFrame = parsedStack[i];
-                var filename = stackFrame === null || stackFrame === void 0 ? void 0 : stackFrame.filename;
-                var chunkId = chunkIdMap[stackKey];
+            const parsedStack = stackParser(stackKey);
+            for (let i = parsedStack.length - 1; i >= 0; i--) {
+                const stackFrame = parsedStack[i];
+                const filename = stackFrame === null || stackFrame === void 0 ? void 0 : stackFrame.filename;
+                const chunkId = chunkIdMap[stackKey];
                 if (filename && chunkId) {
                     acc[filename] = chunkId;
                     parsedStackResults[stackKey] = [filename, chunkId];

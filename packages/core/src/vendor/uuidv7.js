@@ -10,11 +10,11 @@ exports.uuidv4obj = exports.uuidv4 = exports.uuidv7obj = exports.uuidv7 = export
  * @copyright 2021-2023 LiosK
  * @packageDocumentation
  */
-var DIGITS = "0123456789abcdef";
+const DIGITS = "0123456789abcdef";
 /** Represents a UUID as a 16-byte byte array. */
-var UUID = /** @class */ (function () {
+class UUID {
     /** @param bytes - The 16-byte byte array representation. */
-    function UUID(bytes) {
+    constructor(bytes) {
         this.bytes = bytes;
     }
     /**
@@ -26,14 +26,14 @@ var UUID = /** @class */ (function () {
      *
      * @throws TypeError if the length of the argument is not 16.
      */
-    UUID.ofInner = function (bytes) {
+    static ofInner(bytes) {
         if (bytes.length !== 16) {
             throw new TypeError("not 128-bit length");
         }
         else {
             return new UUID(bytes);
         }
-    };
+    }
     /**
      * Builds a byte array from UUIDv7 field values.
      *
@@ -43,7 +43,7 @@ var UUID = /** @class */ (function () {
      * @param randBLo - The lower 32 bits of 62-bit `rand_b` field value.
      * @throws RangeError if any field value is out of the specified range.
      */
-    UUID.fromFieldsV7 = function (unixTsMs, randA, randBHi, randBLo) {
+    static fromFieldsV7(unixTsMs, randA, randBHi, randBLo) {
         if (!Number.isInteger(unixTsMs) ||
             !Number.isInteger(randA) ||
             !Number.isInteger(randBHi) ||
@@ -58,12 +58,12 @@ var UUID = /** @class */ (function () {
             randBLo > 4294967295) {
             throw new RangeError("invalid field value");
         }
-        var bytes = new Uint8Array(16);
-        bytes[0] = unixTsMs / Math.pow(2, 40);
-        bytes[1] = unixTsMs / Math.pow(2, 32);
-        bytes[2] = unixTsMs / Math.pow(2, 24);
-        bytes[3] = unixTsMs / Math.pow(2, 16);
-        bytes[4] = unixTsMs / Math.pow(2, 8);
+        const bytes = new Uint8Array(16);
+        bytes[0] = unixTsMs / 2 ** 40;
+        bytes[1] = unixTsMs / 2 ** 32;
+        bytes[2] = unixTsMs / 2 ** 24;
+        bytes[3] = unixTsMs / 2 ** 16;
+        bytes[4] = unixTsMs / 2 ** 8;
         bytes[5] = unixTsMs;
         bytes[6] = 0x70 | (randA >>> 8);
         bytes[7] = randA;
@@ -76,7 +76,7 @@ var UUID = /** @class */ (function () {
         bytes[14] = randBLo >>> 8;
         bytes[15] = randBLo;
         return new UUID(bytes);
-    };
+    }
     /**
      * Builds a byte array from a string representation.
      *
@@ -91,9 +91,9 @@ var UUID = /** @class */ (function () {
      *
      * @throws SyntaxError if the argument could not parse as a valid UUID string.
      */
-    UUID.parse = function (uuid) {
+    static parse(uuid) {
         var _a, _b, _c, _d;
-        var hex = undefined;
+        let hex = undefined;
         switch (uuid.length) {
             case 32:
                 hex = (_a = /^[0-9a-f]{32}$/i.exec(uuid)) === null || _a === void 0 ? void 0 : _a[0];
@@ -117,9 +117,9 @@ var UUID = /** @class */ (function () {
                 break;
         }
         if (hex) {
-            var inner = new Uint8Array(16);
-            for (var i = 0; i < 16; i += 4) {
-                var n = parseInt(hex.substring(2 * i, 2 * i + 8), 16);
+            const inner = new Uint8Array(16);
+            for (let i = 0; i < 16; i += 4) {
+                const n = parseInt(hex.substring(2 * i, 2 * i + 8), 16);
                 inner[i + 0] = n >>> 24;
                 inner[i + 1] = n >>> 16;
                 inner[i + 2] = n >>> 8;
@@ -130,14 +130,14 @@ var UUID = /** @class */ (function () {
         else {
             throw new SyntaxError("could not parse UUID string");
         }
-    };
+    }
     /**
      * @returns The 8-4-4-4-12 canonical hexadecimal string representation
      * (`0189dcd5-5311-7d40-8db0-9496a2eef37b`).
      */
-    UUID.prototype.toString = function () {
-        var text = "";
-        for (var i = 0; i < this.bytes.length; i++) {
+    toString() {
+        let text = "";
+        for (let i = 0; i < this.bytes.length; i++) {
             text += DIGITS.charAt(this.bytes[i] >>> 4);
             text += DIGITS.charAt(this.bytes[i] & 0xf);
             if (i === 3 || i === 5 || i === 7 || i === 9) {
@@ -145,23 +145,23 @@ var UUID = /** @class */ (function () {
             }
         }
         return text;
-    };
+    }
     /**
      * @returns The 32-digit hexadecimal representation without hyphens
      * (`0189dcd553117d408db09496a2eef37b`).
      */
-    UUID.prototype.toHex = function () {
-        var text = "";
-        for (var i = 0; i < this.bytes.length; i++) {
+    toHex() {
+        let text = "";
+        for (let i = 0; i < this.bytes.length; i++) {
             text += DIGITS.charAt(this.bytes[i] >>> 4);
             text += DIGITS.charAt(this.bytes[i] & 0xf);
         }
         return text;
-    };
+    }
     /** @returns The 8-4-4-4-12 canonical hexadecimal string representation. */
-    UUID.prototype.toJSON = function () {
+    toJSON() {
         return this.toString();
-    };
+    }
     /**
      * Reports the variant field value of the UUID or, if appropriate, "NIL" or
      * "MAX".
@@ -170,57 +170,56 @@ var UUID = /** @class */ (function () {
      * the Nil or Max UUID, although the Nil and Max UUIDs are technically
      * subsumed under the variants `0b0` and `0b111`, respectively.
      */
-    UUID.prototype.getVariant = function () {
-        var n = this.bytes[8] >>> 4;
+    getVariant() {
+        const n = this.bytes[8] >>> 4;
         if (n < 0) {
             throw new Error("unreachable");
         }
-        else if (n <= 7) {
-            return this.bytes.every(function (e) { return e === 0; }) ? "NIL" : "VAR_0";
+        else if (n <= 0b0111) {
+            return this.bytes.every((e) => e === 0) ? "NIL" : "VAR_0";
         }
-        else if (n <= 11) {
+        else if (n <= 0b1011) {
             return "VAR_10";
         }
-        else if (n <= 13) {
+        else if (n <= 0b1101) {
             return "VAR_110";
         }
-        else if (n <= 15) {
-            return this.bytes.every(function (e) { return e === 0xff; }) ? "MAX" : "VAR_RESERVED";
+        else if (n <= 0b1111) {
+            return this.bytes.every((e) => e === 0xff) ? "MAX" : "VAR_RESERVED";
         }
         else {
             throw new Error("unreachable");
         }
-    };
+    }
     /**
      * Returns the version field value of the UUID or `undefined` if the UUID does
      * not have the variant field value of `0b10`.
      */
-    UUID.prototype.getVersion = function () {
+    getVersion() {
         return this.getVariant() === "VAR_10" ? this.bytes[6] >>> 4 : undefined;
-    };
+    }
     /** Creates an object from `this`. */
-    UUID.prototype.clone = function () {
+    clone() {
         return new UUID(this.bytes.slice(0));
-    };
+    }
     /** Returns true if `this` is equivalent to `other`. */
-    UUID.prototype.equals = function (other) {
+    equals(other) {
         return this.compareTo(other) === 0;
-    };
+    }
     /**
      * Returns a negative integer, zero, or positive integer if `this` is less
      * than, equal to, or greater than `other`, respectively.
      */
-    UUID.prototype.compareTo = function (other) {
-        for (var i = 0; i < 16; i++) {
-            var diff = this.bytes[i] - other.bytes[i];
+    compareTo(other) {
+        for (let i = 0; i < 16; i++) {
+            const diff = this.bytes[i] - other.bytes[i];
             if (diff !== 0) {
                 return Math.sign(diff);
             }
         }
         return 0;
-    };
-    return UUID;
-}());
+    }
+}
 exports.UUID = UUID;
 /**
  * Encapsulates the monotonic counter state.
@@ -231,13 +230,13 @@ exports.UUID = UUID;
  * that is useful to absolutely guarantee the monotonically increasing order of
  * generated UUIDs. See their respective documentation for details.
  */
-var V7Generator = /** @class */ (function () {
+class V7Generator {
     /**
      * Creates a generator object with the default random number generator, or
      * with the specified one if passed as an argument. The specified random
      * number generator should be cryptographically strong and securely seeded.
      */
-    function V7Generator(randomNumberGenerator) {
+    constructor(randomNumberGenerator) {
         this.timestamp = 0;
         this.counter = 0;
         this.random = randomNumberGenerator !== null && randomNumberGenerator !== void 0 ? randomNumberGenerator : getDefaultRandom();
@@ -256,9 +255,9 @@ var V7Generator = /** @class */ (function () {
      * See {@link generateOrAbort} for the other mode of generation and
      * {@link generateOrResetCore} for the low-level primitive.
      */
-    V7Generator.prototype.generate = function () {
+    generate() {
         return this.generateOrResetCore(Date.now(), 10000);
-    };
+    }
     /**
      * Generates a new UUIDv7 object from the current timestamp, or returns
      * `undefined` upon significant timestamp rollback.
@@ -272,9 +271,9 @@ var V7Generator = /** @class */ (function () {
      * See {@link generate} for the other mode of generation and
      * {@link generateOrAbortCore} for the low-level primitive.
      */
-    V7Generator.prototype.generateOrAbort = function () {
+    generateOrAbort() {
         return this.generateOrAbortCore(Date.now(), 10000);
-    };
+    }
     /**
      * Generates a new UUIDv7 object from the `unixTsMs` passed, or resets the
      * generator upon significant timestamp rollback.
@@ -286,15 +285,15 @@ var V7Generator = /** @class */ (function () {
      * considered significant. A suggested value is `10_000` (milliseconds).
      * @throws RangeError if `unixTsMs` is not a 48-bit positive integer.
      */
-    V7Generator.prototype.generateOrResetCore = function (unixTsMs, rollbackAllowance) {
-        var value = this.generateOrAbortCore(unixTsMs, rollbackAllowance);
+    generateOrResetCore(unixTsMs, rollbackAllowance) {
+        let value = this.generateOrAbortCore(unixTsMs, rollbackAllowance);
         if (value === undefined) {
             // reset state and resume
             this.timestamp = 0;
             value = this.generateOrAbortCore(unixTsMs, rollbackAllowance);
         }
         return value;
-    };
+    }
     /**
      * Generates a new UUIDv7 object from the `unixTsMs` passed, or returns
      * `undefined` upon significant timestamp rollback.
@@ -306,8 +305,8 @@ var V7Generator = /** @class */ (function () {
      * considered significant. A suggested value is `10_000` (milliseconds).
      * @throws RangeError if `unixTsMs` is not a 48-bit positive integer.
      */
-    V7Generator.prototype.generateOrAbortCore = function (unixTsMs, rollbackAllowance) {
-        var MAX_COUNTER = 4398046511103;
+    generateOrAbortCore(unixTsMs, rollbackAllowance) {
+        const MAX_COUNTER = 4398046511103;
         if (!Number.isInteger(unixTsMs) ||
             unixTsMs < 1 ||
             unixTsMs > 281474976710655) {
@@ -333,31 +332,30 @@ var V7Generator = /** @class */ (function () {
             // abort if clock went backwards to unbearable extent
             return undefined;
         }
-        return UUID.fromFieldsV7(this.timestamp, Math.trunc(this.counter / Math.pow(2, 30)), this.counter & (Math.pow(2, 30) - 1), this.random.nextUint32());
-    };
+        return UUID.fromFieldsV7(this.timestamp, Math.trunc(this.counter / 2 ** 30), this.counter & (2 ** 30 - 1), this.random.nextUint32());
+    }
     /** Initializes the counter at a 42-bit random integer. */
-    V7Generator.prototype.resetCounter = function () {
+    resetCounter() {
         this.counter =
             this.random.nextUint32() * 0x400 + (this.random.nextUint32() & 0x3ff);
-    };
+    }
     /**
      * Generates a new UUIDv4 object utilizing the random number generator inside.
      *
      * @internal
      */
-    V7Generator.prototype.generateV4 = function () {
-        var bytes = new Uint8Array(Uint32Array.of(this.random.nextUint32(), this.random.nextUint32(), this.random.nextUint32(), this.random.nextUint32()).buffer);
+    generateV4() {
+        const bytes = new Uint8Array(Uint32Array.of(this.random.nextUint32(), this.random.nextUint32(), this.random.nextUint32(), this.random.nextUint32()).buffer);
         bytes[6] = 0x40 | (bytes[6] >>> 4);
         bytes[8] = 0x80 | (bytes[8] >>> 2);
         return UUID.ofInner(bytes);
-    };
-    return V7Generator;
-}());
+    }
+}
 exports.V7Generator = V7Generator;
 /** A global flag to force use of cryptographically strong RNG. */
 // declare const UUIDV7_DENY_WEAK_RNG: boolean;
 /** Returns the default random number generator available in the environment. */
-var getDefaultRandom = function () {
+const getDefaultRandom = () => {
     // fix: crypto isn't available in react-native, always use Math.random
     //   // detect Web Crypto API
     //   if (
@@ -377,10 +375,8 @@ var getDefaultRandom = function () {
     //     };
     //   }
     return {
-        nextUint32: function () {
-            return Math.trunc(Math.random() * 65536) * 65536 +
-                Math.trunc(Math.random() * 65536);
-        },
+        nextUint32: () => Math.trunc(Math.random() * 65536) * 65536 +
+            Math.trunc(Math.random() * 65536),
     };
 };
 // /**
@@ -399,19 +395,17 @@ var getDefaultRandom = function () {
 //     return this.buffer[this.cursor++];
 //   }
 // }
-var defaultGenerator;
+let defaultGenerator;
 /**
  * Generates a UUIDv7 string.
  *
  * @returns The 8-4-4-4-12 canonical hexadecimal string representation
  * ("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
  */
-var uuidv7 = function () { return (0, exports.uuidv7obj)().toString(); };
+const uuidv7 = () => (0, exports.uuidv7obj)().toString();
 exports.uuidv7 = uuidv7;
 /** Generates a UUIDv7 object. */
-var uuidv7obj = function () {
-    return (defaultGenerator || (defaultGenerator = new V7Generator())).generate();
-};
+const uuidv7obj = () => (defaultGenerator || (defaultGenerator = new V7Generator())).generate();
 exports.uuidv7obj = uuidv7obj;
 /**
  * Generates a UUIDv4 string.
@@ -419,11 +413,9 @@ exports.uuidv7obj = uuidv7obj;
  * @returns The 8-4-4-4-12 canonical hexadecimal string representation
  * ("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
  */
-var uuidv4 = function () { return (0, exports.uuidv4obj)().toString(); };
+const uuidv4 = () => (0, exports.uuidv4obj)().toString();
 exports.uuidv4 = uuidv4;
 /** Generates a UUIDv4 object. */
-var uuidv4obj = function () {
-    return (defaultGenerator || (defaultGenerator = new V7Generator())).generateV4();
-};
+const uuidv4obj = () => (defaultGenerator || (defaultGenerator = new V7Generator())).generateV4();
 exports.uuidv4obj = uuidv4obj;
 //# sourceMappingURL=uuidv7.js.map

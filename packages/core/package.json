@@ -10,6 +10,9 @@
     "url": "https://github.com/BTuyen/agrid-js.git",
     "directory": "packages/core"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist",
     "src",
@@ -58,7 +61,7 @@
   },
   "devDependencies": {
     "@posthog-tooling/tsconfig-base": "workspace:*",
-    "@rslib/core": "catalog:",
+    "@rslib/core": "0.17.1",
     "@types/cross-spawn": "^6.0.6",
     "jest": "catalog:"
   },

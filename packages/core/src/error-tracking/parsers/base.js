@@ -2,13 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UNKNOWN_FUNCTION = void 0;
 exports.createFrame = createFrame;
-var utils_1 = require("@/utils");
+const utils_1 = require("@/utils");
 exports.UNKNOWN_FUNCTION = '?';
 function createFrame(filename, func, lineno, colno) {
-    var frame = {
+    const frame = {
         // TODO: should be a variable here
         platform: 'web:javascript',
-        filename: filename,
+        filename,
         function: func === '<anonymous>' ? exports.UNKNOWN_FUNCTION : func,
         in_app: true, // All browser frames are considered in_app
     };

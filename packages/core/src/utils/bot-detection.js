@@ -95,14 +95,13 @@ exports.DEFAULT_BLOCKED_UA_STRS = [
 /**
  * Block various web spiders from executing our JS and sending false capturing data
  */
-var isBlockedUA = function (ua, customBlockedUserAgents) {
-    if (customBlockedUserAgents === void 0) { customBlockedUserAgents = []; }
+const isBlockedUA = function (ua, customBlockedUserAgents = []) {
     if (!ua) {
         return false;
     }
-    var uaLower = ua.toLowerCase();
-    return exports.DEFAULT_BLOCKED_UA_STRS.concat(customBlockedUserAgents).some(function (blockedUA) {
-        var blockedUaLower = blockedUA.toLowerCase();
+    const uaLower = ua.toLowerCase();
+    return exports.DEFAULT_BLOCKED_UA_STRS.concat(customBlockedUserAgents).some((blockedUA) => {
+        const blockedUaLower = blockedUA.toLowerCase();
         // can't use includes because IE 11 :/
         return uaLower.indexOf(blockedUaLower) !== -1;
     });
