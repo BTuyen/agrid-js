@@ -1,36 +1,12 @@
-"use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-var globals_1 = require("../utils/globals");
-var core_1 = require("@agrid/core");
-var autocapture_utils_1 = require("../autocapture-utils");
-var autocapture_1 = require("../autocapture");
-var element_utils_1 = require("../utils/element-utils");
-var prototype_utils_1 = require("../utils/prototype-utils");
-var utils_1 = require("../utils");
+import { assignableWindow } from '../utils/globals';
+import { isNull, isNumber, isUndefined } from '@agrid/core';
+import { autocaptureCompatibleElements, getEventTarget } from '../autocapture-utils';
+import { autocapturePropertiesForElement } from '../autocapture';
+import { isElementInToolbar, isElementNode, isTag } from '../utils/element-utils';
+import { getNativeMutationObserverImplementation } from '../utils/prototype-utils';
+import { addEventListener } from '../utils';
 function asClick(event) {
-    var eventTarget = (0, autocapture_utils_1.getEventTarget)(event);
+    const eventTarget = getEventTarget(event);
     if (eventTarget) {
         return {
             node: eventTarget,
@@ -41,54 +17,12 @@ function asClick(event) {
     return null;
 }
 function checkTimeout(value, thresholdMs) {
-    return (0, core_1.isNumber)(value) && value >= thresholdMs;
+    return isNumber(value) && value >= thresholdMs;
 }
-var LazyLoadedDeadClicksAutocapture = /** @class */ (function () {
-    function LazyLoadedDeadClicksAutocapture(instance, config) {
-        var _this = this;
-        this.instance = instance;
-        this._clicks = [];
-        this._defaultConfig = function (defaultOnCapture) { return ({
-            element_attribute_ignorelist: [],
-            scroll_threshold_ms: 100,
-            selection_change_threshold_ms: 100,
-            mutation_threshold_ms: 2500,
-            __onCapture: defaultOnCapture,
-        }); };
-        this._onClick = function (event) {
-            var click = asClick(event);
-            if (!(0, core_1.isNull)(click) && !_this._ignoreClick(click)) {
-                _this._clicks.push(click);
-            }
-            if (_this._clicks.length && (0, core_1.isUndefined)(_this._checkClickTimer)) {
-                _this._checkClickTimer = globals_1.assignableWindow.setTimeout(function () {
-                    _this._checkClicks();
-                }, 1000);
-            }
-        };
-        this._onScroll = function () {
-            var candidateNow = Date.now();
-            // very naive throttle
-            if (candidateNow % 50 === 0) {
-                // we can see many scrolls between scheduled checks,
-                // so we update scroll delay as we see them
-                // to avoid false positives
-                _this._clicks.forEach(function (click) {
-                    if ((0, core_1.isUndefined)(click.scrollDelayMs)) {
-                        click.scrollDelayMs = candidateNow - click.timestamp;
-                    }
-                });
-            }
-        };
-        this._onSelectionChange = function () {
-            _this._lastSelectionChanged = Date.now();
-        };
-        this._config = this._asRequiredConfig(config);
-        this._onCapture = this._config.__onCapture;
-    }
-    LazyLoadedDeadClicksAutocapture.prototype._asRequiredConfig = function (providedConfig) {
+class LazyLoadedDeadClicksAutocapture {
+    _asRequiredConfig(providedConfig) {
         var _a, _b, _c, _d;
-        var defaultConfig = this._defaultConfig((providedConfig === null || providedConfig === void 0 ? void 0 : providedConfig.__onCapture) || this._captureDeadClick.bind(this));
+        const defaultConfig = this._defaultConfig((providedConfig === null || providedConfig === void 0 ? void 0 : providedConfig.__onCapture) || this._captureDeadClick.bind(this));
         return {
             element_attribute_ignorelist: (_a = providedConfig === null || providedConfig === void 0 ? void 0 : providedConfig.element_attribute_ignorelist) !== null && _a !== void 0 ? _a : defaultConfig.element_attribute_ignorelist,
             scroll_threshold_ms: (_b = providedConfig === null || providedConfig === void 0 ? void 0 : providedConfig.scroll_threshold_ms) !== null && _b !== void 0 ? _b : defaultConfig.scroll_threshold_ms,
@@ -96,19 +30,59 @@ var LazyLoadedDeadClicksAutocapture = /** @class */ (function () {
             mutation_threshold_ms: (_d = providedConfig === null || providedConfig === void 0 ? void 0 : providedConfig.mutation_threshold_ms) !== null && _d !== void 0 ? _d : defaultConfig.mutation_threshold_ms,
             __onCapture: defaultConfig.__onCapture,
         };
-    };
-    LazyLoadedDeadClicksAutocapture.prototype.start = function (observerTarget) {
+    }
+    constructor(instance, config) {
+        this.instance = instance;
+        this._clicks = [];
+        this._defaultConfig = (defaultOnCapture) => ({
+            element_attribute_ignorelist: [],
+            scroll_threshold_ms: 100,
+            selection_change_threshold_ms: 100,
+            mutation_threshold_ms: 2500,
+            __onCapture: defaultOnCapture,
+        });
+        this._onClick = (event) => {
+            const click = asClick(event);
+            if (!isNull(click) && !this._ignoreClick(click)) {
+                this._clicks.push(click);
+            }
+            if (this._clicks.length && isUndefined(this._checkClickTimer)) {
+                this._checkClickTimer = assignableWindow.setTimeout(() => {
+                    this._checkClicks();
+                }, 1000);
+            }
+        };
+        this._onScroll = () => {
+            const candidateNow = Date.now();
+            // very naive throttle
+            if (candidateNow % 50 === 0) {
+                // we can see many scrolls between scheduled checks,
+                // so we update scroll delay as we see them
+                // to avoid false positives
+                this._clicks.forEach((click) => {
+                    if (isUndefined(click.scrollDelayMs)) {
+                        click.scrollDelayMs = candidateNow - click.timestamp;
+                    }
+                });
+            }
+        };
+        this._onSelectionChange = () => {
+            this._lastSelectionChanged = Date.now();
+        };
+        this._config = this._asRequiredConfig(config);
+        this._onCapture = this._config.__onCapture;
+    }
+    start(observerTarget) {
         this._startClickObserver();
         this._startScrollObserver();
         this._startSelectionChangedObserver();
         this._startMutationObserver(observerTarget);
-    };
-    LazyLoadedDeadClicksAutocapture.prototype._startMutationObserver = function (observerTarget) {
-        var _this = this;
+    }
+    _startMutationObserver(observerTarget) {
         if (!this._mutationObserver) {
-            var NativeMutationObserver = (0, prototype_utils_1.getNativeMutationObserverImplementation)(globals_1.assignableWindow);
-            this._mutationObserver = new NativeMutationObserver(function (mutations) {
-                _this._onMutation(mutations);
+            const NativeMutationObserver = getNativeMutationObserverImplementation(assignableWindow);
+            this._mutationObserver = new NativeMutationObserver((mutations) => {
+                this._onMutation(mutations);
             });
             this._mutationObserver.observe(observerTarget, {
                 attributes: true,
@@ -117,23 +91,23 @@ var LazyLoadedDeadClicksAutocapture = /** @class */ (function () {
                 subtree: true,
             });
         }
-    };
-    LazyLoadedDeadClicksAutocapture.prototype.stop = function () {
+    }
+    stop() {
         var _a;
         (_a = this._mutationObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
         this._mutationObserver = undefined;
-        globals_1.assignableWindow.removeEventListener('click', this._onClick);
-        globals_1.assignableWindow.removeEventListener('scroll', this._onScroll, { capture: true });
-        globals_1.assignableWindow.removeEventListener('selectionchange', this._onSelectionChange);
-    };
+        assignableWindow.removeEventListener('click', this._onClick);
+        assignableWindow.removeEventListener('scroll', this._onScroll, { capture: true });
+        assignableWindow.removeEventListener('selectionchange', this._onSelectionChange);
+    }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    LazyLoadedDeadClicksAutocapture.prototype._onMutation = function (_mutations) {
+    _onMutation(_mutations) {
         // we don't actually care about the content of the mutations, right now
         this._lastMutation = Date.now();
-    };
-    LazyLoadedDeadClicksAutocapture.prototype._startClickObserver = function () {
-        (0, utils_1.addEventListener)(globals_1.assignableWindow, 'click', this._onClick);
-    };
+    }
+    _startClickObserver() {
+        addEventListener(assignableWindow, 'click', this._onClick);
+    }
     // `capture: true` is required to get scroll events for other scrollable elements
     // on the page, not just the window
     // see https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener#usecapture
@@ -141,117 +115,108 @@ var LazyLoadedDeadClicksAutocapture = /** @class */ (function () {
     // `passive: true` is used to tell the browser that the scroll event handler will not call `preventDefault()`
     // This allows the browser to optimize scrolling performance by not waiting for our handling of the scroll event
     // see https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener#passive
-    LazyLoadedDeadClicksAutocapture.prototype._startScrollObserver = function () {
-        (0, utils_1.addEventListener)(globals_1.assignableWindow, 'scroll', this._onScroll, { capture: true });
-    };
-    LazyLoadedDeadClicksAutocapture.prototype._startSelectionChangedObserver = function () {
-        (0, utils_1.addEventListener)(globals_1.assignableWindow, 'selectionchange', this._onSelectionChange);
-    };
-    LazyLoadedDeadClicksAutocapture.prototype._ignoreClick = function (click) {
+    _startScrollObserver() {
+        addEventListener(assignableWindow, 'scroll', this._onScroll, { capture: true });
+    }
+    _startSelectionChangedObserver() {
+        addEventListener(assignableWindow, 'selectionchange', this._onSelectionChange);
+    }
+    _ignoreClick(click) {
         if (!click) {
             return true;
         }
-        if ((0, element_utils_1.isElementInToolbar)(click.node)) {
+        if (isElementInToolbar(click.node)) {
             return true;
         }
-        var alreadyClickedInLastSecond = this._clicks.some(function (c) {
+        const alreadyClickedInLastSecond = this._clicks.some((c) => {
             return c.node === click.node && Math.abs(c.timestamp - click.timestamp) < 1000;
         });
         if (alreadyClickedInLastSecond) {
             return true;
         }
-        if ((0, element_utils_1.isTag)(click.node, 'html') ||
-            !(0, element_utils_1.isElementNode)(click.node) ||
-            autocapture_utils_1.autocaptureCompatibleElements.includes(click.node.tagName.toLowerCase())) {
+        if (isTag(click.node, 'html') ||
+            !isElementNode(click.node) ||
+            autocaptureCompatibleElements.includes(click.node.tagName.toLowerCase())) {
             return true;
         }
         return false;
-    };
-    LazyLoadedDeadClicksAutocapture.prototype._checkClicks = function () {
-        var e_1, _a;
-        var _this = this;
-        var _b;
+    }
+    _checkClicks() {
+        var _a;
         if (!this._clicks.length) {
             return;
         }
         clearTimeout(this._checkClickTimer);
         this._checkClickTimer = undefined;
-        var clicksToCheck = this._clicks;
+        const clicksToCheck = this._clicks;
         this._clicks = [];
-        try {
-            for (var clicksToCheck_1 = __values(clicksToCheck), clicksToCheck_1_1 = clicksToCheck_1.next(); !clicksToCheck_1_1.done; clicksToCheck_1_1 = clicksToCheck_1.next()) {
-                var click = clicksToCheck_1_1.value;
-                click.mutationDelayMs =
-                    (_b = click.mutationDelayMs) !== null && _b !== void 0 ? _b : (this._lastMutation && click.timestamp <= this._lastMutation
-                        ? this._lastMutation - click.timestamp
-                        : undefined);
-                click.absoluteDelayMs = Date.now() - click.timestamp;
-                click.selectionChangedDelayMs =
-                    this._lastSelectionChanged && click.timestamp <= this._lastSelectionChanged
-                        ? this._lastSelectionChanged - click.timestamp
-                        : undefined;
-                var scrollTimeout = checkTimeout(click.scrollDelayMs, this._config.scroll_threshold_ms);
-                var selectionChangedTimeout = checkTimeout(click.selectionChangedDelayMs, this._config.selection_change_threshold_ms);
-                var mutationTimeout = checkTimeout(click.mutationDelayMs, this._config.mutation_threshold_ms);
-                // we want to timeout eventually even if nothing else catches it...
-                // we leave a little longer than the maximum threshold to give the other checks a chance to catch it
-                var absoluteTimeout = checkTimeout(click.absoluteDelayMs, this._config.mutation_threshold_ms * 1.1);
-                var hadScroll = (0, core_1.isNumber)(click.scrollDelayMs) && click.scrollDelayMs < this._config.scroll_threshold_ms;
-                var hadMutation = (0, core_1.isNumber)(click.mutationDelayMs) && click.mutationDelayMs < this._config.mutation_threshold_ms;
-                var hadSelectionChange = (0, core_1.isNumber)(click.selectionChangedDelayMs) &&
-                    click.selectionChangedDelayMs < this._config.selection_change_threshold_ms;
-                if (hadScroll || hadMutation || hadSelectionChange) {
-                    // ignore clicks that had a scroll or mutation
-                    continue;
-                }
-                if (scrollTimeout || mutationTimeout || absoluteTimeout || selectionChangedTimeout) {
-                    this._onCapture(click, {
-                        $dead_click_last_mutation_timestamp: this._lastMutation,
-                        $dead_click_event_timestamp: click.timestamp,
-                        $dead_click_scroll_timeout: scrollTimeout,
-                        $dead_click_mutation_timeout: mutationTimeout,
-                        $dead_click_absolute_timeout: absoluteTimeout,
-                        $dead_click_selection_changed_timeout: selectionChangedTimeout,
-                    });
-                }
-                else if (click.absoluteDelayMs < this._config.mutation_threshold_ms) {
-                    // keep waiting until next check
-                    this._clicks.push(click);
-                }
+        for (const click of clicksToCheck) {
+            click.mutationDelayMs =
+                (_a = click.mutationDelayMs) !== null && _a !== void 0 ? _a : (this._lastMutation && click.timestamp <= this._lastMutation
+                    ? this._lastMutation - click.timestamp
+                    : undefined);
+            click.absoluteDelayMs = Date.now() - click.timestamp;
+            click.selectionChangedDelayMs =
+                this._lastSelectionChanged && click.timestamp <= this._lastSelectionChanged
+                    ? this._lastSelectionChanged - click.timestamp
+                    : undefined;
+            const scrollTimeout = checkTimeout(click.scrollDelayMs, this._config.scroll_threshold_ms);
+            const selectionChangedTimeout = checkTimeout(click.selectionChangedDelayMs, this._config.selection_change_threshold_ms);
+            const mutationTimeout = checkTimeout(click.mutationDelayMs, this._config.mutation_threshold_ms);
+            // we want to timeout eventually even if nothing else catches it...
+            // we leave a little longer than the maximum threshold to give the other checks a chance to catch it
+            const absoluteTimeout = checkTimeout(click.absoluteDelayMs, this._config.mutation_threshold_ms * 1.1);
+            const hadScroll = isNumber(click.scrollDelayMs) && click.scrollDelayMs < this._config.scroll_threshold_ms;
+            const hadMutation = isNumber(click.mutationDelayMs) && click.mutationDelayMs < this._config.mutation_threshold_ms;
+            const hadSelectionChange = isNumber(click.selectionChangedDelayMs) &&
+                click.selectionChangedDelayMs < this._config.selection_change_threshold_ms;
+            if (hadScroll || hadMutation || hadSelectionChange) {
+                // ignore clicks that had a scroll or mutation
+                continue;
+            }
+            if (scrollTimeout || mutationTimeout || absoluteTimeout || selectionChangedTimeout) {
+                this._onCapture(click, {
+                    $dead_click_last_mutation_timestamp: this._lastMutation,
+                    $dead_click_event_timestamp: click.timestamp,
+                    $dead_click_scroll_timeout: scrollTimeout,
+                    $dead_click_mutation_timeout: mutationTimeout,
+                    $dead_click_absolute_timeout: absoluteTimeout,
+                    $dead_click_selection_changed_timeout: selectionChangedTimeout,
+                });
+            }
+            else if (click.absoluteDelayMs < this._config.mutation_threshold_ms) {
+                // keep waiting until next check
+                this._clicks.push(click);
             }
         }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (clicksToCheck_1_1 && !clicksToCheck_1_1.done && (_a = clicksToCheck_1.return)) _a.call(clicksToCheck_1);
-            }
-            finally { if (e_1) throw e_1.error; }
-        }
-        if (this._clicks.length && (0, core_1.isUndefined)(this._checkClickTimer)) {
-            this._checkClickTimer = globals_1.assignableWindow.setTimeout(function () {
-                _this._checkClicks();
+        if (this._clicks.length && isUndefined(this._checkClickTimer)) {
+            this._checkClickTimer = assignableWindow.setTimeout(() => {
+                this._checkClicks();
             }, 1000);
         }
-    };
-    LazyLoadedDeadClicksAutocapture.prototype._captureDeadClick = function (click, properties) {
+    }
+    _captureDeadClick(click, properties) {
         // TODO need to check safe and captur-able as with autocapture
         // TODO autocaputure config
-        this.instance.capture('$dead_click', __assign(__assign(__assign({}, properties), (0, autocapture_1.autocapturePropertiesForElement)(click.node, {
-            e: click.originalEvent,
-            maskAllElementAttributes: this.instance.config.mask_all_element_attributes,
-            maskAllText: this.instance.config.mask_all_text,
-            elementAttributeIgnoreList: this._config.element_attribute_ignorelist,
-            // TRICKY: it appears that we were moving to elementsChainAsString, but the UI still depends on elements, so :shrug:
-            elementsChainAsString: false,
-        }).props), { $dead_click_scroll_delay_ms: click.scrollDelayMs, $dead_click_mutation_delay_ms: click.mutationDelayMs, $dead_click_absolute_delay_ms: click.absoluteDelayMs, $dead_click_selection_changed_delay_ms: click.selectionChangedDelayMs }), {
+        this.instance.capture('$dead_click', {
+            ...properties,
+            ...autocapturePropertiesForElement(click.node, {
+                e: click.originalEvent,
+                maskAllElementAttributes: this.instance.config.mask_all_element_attributes,
+                maskAllText: this.instance.config.mask_all_text,
+                elementAttributeIgnoreList: this._config.element_attribute_ignorelist,
+                // TRICKY: it appears that we were moving to elementsChainAsString, but the UI still depends on elements, so :shrug:
+                elementsChainAsString: false,
+            }).props,
+            $dead_click_scroll_delay_ms: click.scrollDelayMs,
+            $dead_click_mutation_delay_ms: click.mutationDelayMs,
+            $dead_click_absolute_delay_ms: click.absoluteDelayMs,
+            $dead_click_selection_changed_delay_ms: click.selectionChangedDelayMs,
+        }, {
             timestamp: new Date(click.timestamp),
         });
-    };
-    return LazyLoadedDeadClicksAutocapture;
-}());
-globals_1.assignableWindow.__PosthogExtensions__ = globals_1.assignableWindow.__PosthogExtensions__ || {};
-globals_1.assignableWindow.__PosthogExtensions__.initDeadClicksAutocapture = function (ph, config) {
-    return new LazyLoadedDeadClicksAutocapture(ph, config);
-};
-exports.default = LazyLoadedDeadClicksAutocapture;
-//# sourceMappingURL=dead-clicks-autocapture.js.map
+    }
+}
+assignableWindow.__PosthogExtensions__ = assignableWindow.__PosthogExtensions__ || {};
+assignableWindow.__PosthogExtensions__.initDeadClicksAutocapture = (ph, config) => new LazyLoadedDeadClicksAutocapture(ph, config);
+export default LazyLoadedDeadClicksAutocapture;

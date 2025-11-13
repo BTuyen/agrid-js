@@ -1,0 +1,108 @@
+import { MutationThrottler } from '../../../extensions/replay/external/mutation-throttler';
+import { INCREMENTAL_SNAPSHOT_EVENT_TYPE, MUTATION_SOURCE_TYPE, } from '../../../extensions/replay/external/sessionrecording-utils';
+import { jest } from '@jest/globals';
+jest.useFakeTimers();
+const makeEvent = (mutations) => ({
+    type: INCREMENTAL_SNAPSHOT_EVENT_TYPE,
+    data: {
+        source: MUTATION_SOURCE_TYPE,
+        adds: (mutations === null || mutations === void 0 ? void 0 : mutations.adds) || [],
+        removes: (mutations === null || mutations === void 0 ? void 0 : mutations.removes) || [],
+        attributes: (mutations === null || mutations === void 0 ? void 0 : mutations.attributes) || [],
+        texts: [],
+    },
+    timestamp: 1,
+});
+describe('MutationThrottler', () => {
+    const mockGetNode = jest.fn();
+    const mockGetId = jest.fn();
+    const rrwebMock = {
+        mirror: {
+            getNode: mockGetNode,
+            getId: mockGetId,
+        },
+    };
+    let mutationThrottler;
+    let onBlockedNodeMock;
+    beforeEach(() => {
+        mockGetNode.mockReturnValueOnce({ nodeName: 'div' });
+        mockGetId.mockReturnValueOnce(1);
+        onBlockedNodeMock = jest.fn();
+        mutationThrottler = new MutationThrottler(rrwebMock, {
+            onBlockedNode: onBlockedNodeMock,
+        });
+    });
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+    test('event is passed through unchanged when not throttled', () => {
+        const event = makeEvent({});
+        const result = mutationThrottler.throttleMutations(event);
+        expect(result).toBe(event);
+    });
+    test('returns undefined if no mutations are left', () => {
+        const event = makeEvent({ attributes: [{ id: 1, attributes: { a: 'ttribute' } }] });
+        mutationThrottler['_rateLimiter']['_buckets']['1'] = { tokens: 0, lastAccess: Date.now() };
+        const result = mutationThrottler.throttleMutations(event);
+        expect(result).toBeUndefined();
+    });
+    test('returns event if _any_ adds are left', () => {
+        const event = makeEvent({
+            // TODO: add serializedNodeWithId type once https://github.com/rrweb-io/rrweb/pull/1593 merges
+            adds: [{ parentId: 0, nextId: 0, node: {} }],
+            attributes: [{ id: 1, attributes: { a: 'ttribute' } }],
+        });
+        mutationThrottler['_rateLimiter']['_buckets']['1'] = { tokens: 0, lastAccess: Date.now() };
+        const result = mutationThrottler.throttleMutations(event);
+        expect(result).toStrictEqual(makeEvent({
+            // TODO: add serializedNodeWithId type once https://github.com/rrweb-io/rrweb/pull/1593 merges
+            adds: [{ parentId: 0, nextId: 0, node: {} }],
+            attributes: [],
+        }));
+    });
+    test('returns event if _any_ removes are left', () => {
+        const event = makeEvent({
+            removes: [{ parentId: 0, id: 0 }],
+            attributes: [{ id: 1, attributes: { a: 'ttribute' } }],
+        });
+        mutationThrottler['_rateLimiter']['_buckets']['1'] = { tokens: 0, lastAccess: Date.now() };
+        const result = mutationThrottler.throttleMutations(event);
+        expect(result).toStrictEqual(makeEvent({
+            removes: [{ parentId: 0, id: 0 }],
+            attributes: [],
+        }));
+    });
+    test('does not throttle non-mutation events', () => {
+        const event = {
+            type: 'other_event_type',
+            data: {},
+        };
+        const result = mutationThrottler.throttleMutations(event);
+        expect(result).toBe(event);
+    });
+    describe('reset()', () => {
+        test('clears the logged tracker', () => {
+            // Populate the logged tracker
+            mutationThrottler['_loggedTracker']['123'] = true;
+            mutationThrottler['_loggedTracker']['456'] = true;
+            expect(Object.keys(mutationThrottler['_loggedTracker'])).toHaveLength(2);
+            mutationThrottler.reset();
+            expect(Object.keys(mutationThrottler['_loggedTracker'])).toHaveLength(0);
+        });
+    });
+    describe('stop()', () => {
+        test('clears the rate limiter interval', () => {
+            const stopSpy = jest.spyOn(mutationThrottler['_rateLimiter'], 'stop');
+            mutationThrottler.stop();
+            expect(stopSpy).toHaveBeenCalled();
+        });
+        test('clears the logged tracker', () => {
+            // Populate the logged tracker
+            mutationThrottler['_loggedTracker']['123'] = true;
+            mutationThrottler['_loggedTracker']['456'] = true;
+            expect(Object.keys(mutationThrottler['_loggedTracker'])).toHaveLength(2);
+            mutationThrottler.stop();
+            expect(Object.keys(mutationThrottler['_loggedTracker'])).toHaveLength(0);
+        });
+    });
+});

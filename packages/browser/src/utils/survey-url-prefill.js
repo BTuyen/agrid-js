@@ -1,160 +1,108 @@
-"use strict";
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
-var __read = (this && this.__read) || function (o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-};
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractPrefillParamsFromUrl = extractPrefillParamsFromUrl;
-exports.convertPrefillToResponses = convertPrefillToResponses;
-exports.allRequiredQuestionsFilled = allRequiredQuestionsFilled;
-var posthog_surveys_types_1 = require("../posthog-surveys-types");
-var surveys_extension_utils_1 = require("../extensions/surveys/surveys-extension-utils");
-var logger_1 = require("./logger");
-var core_1 = require("@agrid/core");
+import { SurveyQuestionType } from '../posthog-surveys-types';
+import { getSurveyResponseKey } from '../extensions/surveys/surveys-extension-utils';
+import { logger } from './logger';
+import { isUndefined } from '@agrid/core';
 /**
  * Extract prefill parameters from URL search string
  * Format: ?q0=1&q1=8&q2=0&q2=2&auto_submit=true
  * NOTE: Manual parsing for IE11/op_mini compatibility (no URLSearchParams)
  */
-function extractPrefillParamsFromUrl(searchString) {
-    var e_1, _a;
-    var params = {};
-    var autoSubmit = false;
+export function extractPrefillParamsFromUrl(searchString) {
+    const params = {};
+    let autoSubmit = false;
     // Remove leading ? if present
-    var cleanSearch = searchString.replace(/^\?/, '');
+    const cleanSearch = searchString.replace(/^\?/, '');
     if (!cleanSearch) {
-        return { params: params, autoSubmit: autoSubmit };
+        return { params, autoSubmit };
     }
     // Split by & to get key-value pairs
-    var pairs = cleanSearch.split('&');
-    try {
-        for (var pairs_1 = __values(pairs), pairs_1_1 = pairs_1.next(); !pairs_1_1.done; pairs_1_1 = pairs_1.next()) {
-            var pair = pairs_1_1.value;
-            var _b = __read(pair.split('='), 2), key = _b[0], value = _b[1];
-            if (!key || (0, core_1.isUndefined)(value)) {
-                continue;
+    const pairs = cleanSearch.split('&');
+    for (const pair of pairs) {
+        const [key, value] = pair.split('=');
+        if (!key || isUndefined(value)) {
+            continue;
+        }
+        const decodedKey = decodeURIComponent(key);
+        const decodedValue = decodeURIComponent(value);
+        // Check for auto_submit parameter
+        if (decodedKey === 'auto_submit' && decodedValue === 'true') {
+            autoSubmit = true;
+            continue;
+        }
+        // Check for question parameters (q0, q1, etc.)
+        const match = decodedKey.match(/^q(\d+)$/);
+        if (match) {
+            const questionIndex = parseInt(match[1], 10);
+            if (!params[questionIndex]) {
+                params[questionIndex] = [];
             }
-            var decodedKey = decodeURIComponent(key);
-            var decodedValue = decodeURIComponent(value);
-            // Check for auto_submit parameter
-            if (decodedKey === 'auto_submit' && decodedValue === 'true') {
-                autoSubmit = true;
-                continue;
-            }
-            // Check for question parameters (q0, q1, etc.)
-            var match = decodedKey.match(/^q(\d+)$/);
-            if (match) {
-                var questionIndex = parseInt(match[1], 10);
-                if (!params[questionIndex]) {
-                    params[questionIndex] = [];
-                }
-                params[questionIndex].push(decodedValue);
-            }
+            params[questionIndex].push(decodedValue);
         }
     }
-    catch (e_1_1) { e_1 = { error: e_1_1 }; }
-    finally {
-        try {
-            if (pairs_1_1 && !pairs_1_1.done && (_a = pairs_1.return)) _a.call(pairs_1);
-        }
-        finally { if (e_1) throw e_1.error; }
-    }
-    return { params: params, autoSubmit: autoSubmit };
+    return { params, autoSubmit };
 }
 /**
  * Convert URL prefill values to SDK response format
  */
-function convertPrefillToResponses(survey, prefillParams) {
-    var responses = {};
-    survey.questions.forEach(function (question, index) {
+export function convertPrefillToResponses(survey, prefillParams) {
+    const responses = {};
+    survey.questions.forEach((question, index) => {
         if (!prefillParams[index] || !question.id) {
             return;
         }
-        var values = prefillParams[index];
-        var responseKey = (0, surveys_extension_utils_1.getSurveyResponseKey)(question.id);
+        const values = prefillParams[index];
+        const responseKey = getSurveyResponseKey(question.id);
         try {
             switch (question.type) {
-                case posthog_surveys_types_1.SurveyQuestionType.SingleChoice: {
+                case SurveyQuestionType.SingleChoice: {
                     if (!question.choices || question.choices.length === 0) {
-                        logger_1.logger.warn("[Survey Prefill] Question ".concat(index, " has no choices"));
+                        logger.warn(`[Survey Prefill] Question ${index} has no choices`);
                         return;
                     }
-                    var choiceIndex = parseInt(values[0], 10);
+                    const choiceIndex = parseInt(values[0], 10);
                     if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= question.choices.length) {
-                        logger_1.logger.warn("[Survey Prefill] Invalid choice index for q".concat(index, ": ").concat(values[0]));
+                        logger.warn(`[Survey Prefill] Invalid choice index for q${index}: ${values[0]}`);
                         return;
                     }
                     responses[responseKey] = question.choices[choiceIndex];
                     break;
                 }
-                case posthog_surveys_types_1.SurveyQuestionType.MultipleChoice: {
+                case SurveyQuestionType.MultipleChoice: {
                     if (!question.choices || question.choices.length === 0) {
-                        logger_1.logger.warn("[Survey Prefill] Question ".concat(index, " has no choices"));
+                        logger.warn(`[Survey Prefill] Question ${index} has no choices`);
                         return;
                     }
-                    var choiceIndices = values
-                        .map(function (v) { return parseInt(v, 10); })
-                        .filter(function (i) { return !isNaN(i) && i >= 0 && i < question.choices.length; });
+                    const choiceIndices = values
+                        .map((v) => parseInt(v, 10))
+                        .filter((i) => !isNaN(i) && i >= 0 && i < question.choices.length);
                     if (choiceIndices.length === 0) {
-                        logger_1.logger.warn("[Survey Prefill] No valid choices for q".concat(index));
+                        logger.warn(`[Survey Prefill] No valid choices for q${index}`);
                         return;
                     }
                     // Remove duplicates and map to choice values
-                    var uniqueChoices = __spreadArray([], __read(new Set(choiceIndices.map(function (i) { return question.choices[i]; }))), false);
+                    const uniqueChoices = [...new Set(choiceIndices.map((i) => question.choices[i]))];
                     if (uniqueChoices.length < choiceIndices.length) {
-                        logger_1.logger.warn("[Survey Prefill] Removed duplicate choices for q".concat(index));
+                        logger.warn(`[Survey Prefill] Removed duplicate choices for q${index}`);
                     }
                     responses[responseKey] = uniqueChoices;
                     break;
                 }
-                case posthog_surveys_types_1.SurveyQuestionType.Rating: {
-                    var rating = parseInt(values[0], 10);
-                    var scale = question.scale || 10;
+                case SurveyQuestionType.Rating: {
+                    const rating = parseInt(values[0], 10);
+                    const scale = question.scale || 10;
                     if (isNaN(rating) || rating < 0 || rating > scale) {
-                        logger_1.logger.warn("[Survey Prefill] Invalid rating for q".concat(index, ": ").concat(values[0], " (scale: 0-").concat(scale, ")"));
+                        logger.warn(`[Survey Prefill] Invalid rating for q${index}: ${values[0]} (scale: 0-${scale})`);
                         return;
                     }
                     responses[responseKey] = rating;
                     break;
                 }
                 default:
-                    logger_1.logger.info("[Survey Prefill] Question type ".concat(question.type, " does not support prefill"));
+                    logger.info(`[Survey Prefill] Question type ${question.type} does not support prefill`);
             }
         }
         catch (error) {
-            logger_1.logger.error("[Survey Prefill] Error converting q".concat(index, ":"), error);
+            logger.error(`[Survey Prefill] Error converting q${index}:`, error);
         }
     });
     return responses;
@@ -162,25 +110,24 @@ function convertPrefillToResponses(survey, prefillParams) {
 /**
  * Check if all REQUIRED questions that support prefill are filled
  */
-function allRequiredQuestionsFilled(survey, responses) {
-    return survey.questions.every(function (question) {
+export function allRequiredQuestionsFilled(survey, responses) {
+    return survey.questions.every((question) => {
         // Optional questions don't block auto-submit
         if (question.optional) {
             return true;
         }
         // Link and open questions don't support prefill currently, so they don't block auto-submit
         // If support is added in the future, they will be checked like other question types below
-        if (question.type === posthog_surveys_types_1.SurveyQuestionType.Link || question.type === posthog_surveys_types_1.SurveyQuestionType.Open) {
+        if (question.type === SurveyQuestionType.Link || question.type === SurveyQuestionType.Open) {
             return true;
         }
         // Required question must have a valid ID and response
         if (!question.id) {
             return false;
         }
-        var responseKey = (0, surveys_extension_utils_1.getSurveyResponseKey)(question.id);
-        var hasResponse = responses.hasOwnProperty(responseKey);
+        const responseKey = getSurveyResponseKey(question.id);
+        const hasResponse = responses.hasOwnProperty(responseKey);
         // For question types that support prefill, require a response
         return hasResponse;
     });
 }
-//# sourceMappingURL=survey-url-prefill.js.map

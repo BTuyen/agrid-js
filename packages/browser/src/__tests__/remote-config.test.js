@@ -1,0 +1,94 @@
+import { RemoteConfigLoader } from '../remote-config';
+import { RequestRouter } from '../utils/request-router';
+import '../entrypoints/external-scripts-loader';
+import { assignableWindow } from '../utils/globals';
+describe('RemoteConfigLoader', () => {
+    let posthog;
+    beforeEach(() => {
+        const defaultConfig = {
+            token: 'testtoken',
+            api_host: 'https://test.com',
+            persistence: 'memory',
+        };
+        document.body.innerHTML = '';
+        document.head.innerHTML = '';
+        jest.spyOn(window.console, 'error').mockImplementation();
+        posthog = {
+            config: { ...defaultConfig },
+            _onRemoteConfig: jest.fn(),
+            _send_request: jest.fn().mockImplementation(({ callback }) => callback === null || callback === void 0 ? void 0 : callback({ config: {} })),
+            _shouldDisableFlags: () => posthog.config.advanced_disable_flags || posthog.config.advanced_disable_decide || false,
+            featureFlags: {
+                ensureFlagsLoaded: jest.fn(),
+            },
+            requestRouter: new RequestRouter({ config: defaultConfig }),
+        };
+    });
+    describe('remote config', () => {
+        const config = { surveys: true };
+        beforeEach(() => {
+            posthog.config.__preview_remote_config = true;
+            assignableWindow._POSTHOG_REMOTE_CONFIG = undefined;
+            assignableWindow.POSTHOG_DEBUG = true;
+            assignableWindow.__PosthogExtensions__.loadExternalDependency = jest.fn((_ph, _name, cb) => {
+                assignableWindow._POSTHOG_REMOTE_CONFIG = {};
+                assignableWindow._POSTHOG_REMOTE_CONFIG[_ph.config.token] = {
+                    config,
+                    siteApps: [],
+                };
+                cb();
+            });
+            posthog._send_request = jest.fn().mockImplementation(({ callback }) => callback === null || callback === void 0 ? void 0 : callback({ json: config }));
+        });
+        it('properly pulls from the window and uses it if set', () => {
+            assignableWindow._POSTHOG_REMOTE_CONFIG = {
+                [posthog.config.token]: {
+                    config,
+                    siteApps: [],
+                },
+            };
+            new RemoteConfigLoader(posthog).load();
+            expect(assignableWindow.__PosthogExtensions__.loadExternalDependency).not.toHaveBeenCalled();
+            expect(posthog._send_request).not.toHaveBeenCalled();
+            expect(posthog._onRemoteConfig).toHaveBeenCalledWith(config);
+        });
+        it('loads the script if window config not set', () => {
+            new RemoteConfigLoader(posthog).load();
+            expect(assignableWindow.__PosthogExtensions__.loadExternalDependency).toHaveBeenCalledWith(posthog, 'remote-config', expect.any(Function));
+            expect(posthog._send_request).not.toHaveBeenCalled();
+            expect(posthog._onRemoteConfig).toHaveBeenCalledWith(config);
+        });
+        it('loads the json if window config not set and js failed', () => {
+            assignableWindow.__PosthogExtensions__.loadExternalDependency = jest.fn((_ph, _name, cb) => {
+                cb();
+            });
+            new RemoteConfigLoader(posthog).load();
+            expect(assignableWindow.__PosthogExtensions__.loadExternalDependency).toHaveBeenCalled();
+            expect(posthog._send_request).toHaveBeenCalledWith({
+                method: 'GET',
+                url: 'https://test.com/array/testtoken/config',
+                callback: expect.any(Function),
+            });
+            expect(posthog._onRemoteConfig).toHaveBeenCalledWith(config);
+        });
+        it.each([
+            [true, true],
+            [false, false],
+            [undefined, true],
+        ])('conditionally reloads feature flags - hasFlags: %s, shouldReload: %s', (hasFeatureFlags, shouldReload) => {
+            assignableWindow._POSTHOG_REMOTE_CONFIG = {
+                [posthog.config.token]: {
+                    config: { ...config, hasFeatureFlags },
+                    siteApps: [],
+                },
+            };
+            new RemoteConfigLoader(posthog).load();
+            if (shouldReload) {
+                expect(posthog.featureFlags.ensureFlagsLoaded).toHaveBeenCalled();
+            }
+            else {
+                expect(posthog.featureFlags.ensureFlagsLoaded).not.toHaveBeenCalled();
+            }
+        });
+    });
+});

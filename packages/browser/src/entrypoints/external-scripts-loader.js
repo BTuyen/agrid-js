@@ -1,102 +1,96 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var globals_1 = require("../utils/globals");
-var logger_1 = require("../utils/logger");
-var logger = (0, logger_1.createLogger)('[ExternalScriptsLoader]');
-var loadScript = function (posthog, url, callback) {
+import { assignableWindow, document } from '../utils/globals';
+import { createLogger } from '../utils/logger';
+const logger = createLogger('[ExternalScriptsLoader]');
+const loadScript = (posthog, url, callback) => {
     if (posthog.config.disable_external_dependency_loading) {
-        logger.warn("".concat(url, " was requested but loading of external scripts is disabled."));
+        logger.warn(`${url} was requested but loading of external scripts is disabled.`);
         return callback('Loading of external scripts is disabled');
     }
     // If we add a script more than once then the browser will parse and execute it
     // So, even if idempotent we waste parsing and processing time
-    var existingScripts = globals_1.document === null || globals_1.document === void 0 ? void 0 : globals_1.document.querySelectorAll('script');
+    const existingScripts = document === null || document === void 0 ? void 0 : document.querySelectorAll('script');
     if (existingScripts) {
-        var _loop_1 = function (i) {
+        for (let i = 0; i < existingScripts.length; i++) {
             if (existingScripts[i].src === url) {
-                var alreadyExistingScriptTag_1 = existingScripts[i];
-                if (alreadyExistingScriptTag_1.__posthog_loading_callback_fired) {
-                    return { value: callback() };
+                const alreadyExistingScriptTag = existingScripts[i];
+                if (alreadyExistingScriptTag.__posthog_loading_callback_fired) {
+                    // script already exists and fired its load event,
+                    // we call the callback again, they need to be idempotent
+                    return callback();
                 }
                 // eslint-disable-next-line posthog-js/no-add-event-listener
-                alreadyExistingScriptTag_1.addEventListener('load', function (event) {
+                alreadyExistingScriptTag.addEventListener('load', (event) => {
                     // it hasn't already loaded
                     // we probably called loadScript twice in quick succession,
                     // so we attach a callback to the onload event
                     ;
-                    alreadyExistingScriptTag_1.__posthog_loading_callback_fired = true;
+                    alreadyExistingScriptTag.__posthog_loading_callback_fired = true;
                     callback(undefined, event);
                 });
-                alreadyExistingScriptTag_1.onerror = function (error) { return callback(error); };
-                return { value: void 0 };
+                alreadyExistingScriptTag.onerror = (error) => callback(error);
+                return; // and finish processing here
             }
-        };
-        for (var i = 0; i < existingScripts.length; i++) {
-            var state_1 = _loop_1(i);
-            if (typeof state_1 === "object")
-                return state_1.value;
         }
     }
-    var addScript = function () {
+    const addScript = () => {
         var _a;
-        if (!globals_1.document) {
+        if (!document) {
             return callback('document not found');
         }
-        var scriptTag = globals_1.document.createElement('script');
+        let scriptTag = document.createElement('script');
         scriptTag.type = 'text/javascript';
         scriptTag.crossOrigin = 'anonymous';
         scriptTag.src = url;
-        scriptTag.onload = function (event) {
+        scriptTag.onload = (event) => {
             // mark the script as having had its callback fired, so we can avoid double-calling it
             ;
             scriptTag.__posthog_loading_callback_fired = true;
             callback(undefined, event);
         };
-        scriptTag.onerror = function (error) { return callback(error); };
+        scriptTag.onerror = (error) => callback(error);
         if (posthog.config.prepare_external_dependency_script) {
             scriptTag = posthog.config.prepare_external_dependency_script(scriptTag);
         }
         if (!scriptTag) {
             return callback('prepare_external_dependency_script returned null');
         }
-        var scripts = globals_1.document.querySelectorAll('body > script');
+        const scripts = document.querySelectorAll('body > script');
         if (scripts.length > 0) {
             (_a = scripts[0].parentNode) === null || _a === void 0 ? void 0 : _a.insertBefore(scriptTag, scripts[0]);
         }
         else {
             // In exceptional situations this call might load before the DOM is fully ready.
-            globals_1.document.body.appendChild(scriptTag);
+            document.body.appendChild(scriptTag);
         }
     };
-    if (globals_1.document === null || globals_1.document === void 0 ? void 0 : globals_1.document.body) {
+    if (document === null || document === void 0 ? void 0 : document.body) {
         addScript();
     }
     else {
         // Inlining this because we don't care about `passive: true` here
         // and this saves us ~3% of the bundle size
         // eslint-disable-next-line posthog-js/no-add-event-listener
-        globals_1.document === null || globals_1.document === void 0 ? void 0 : globals_1.document.addEventListener('DOMContentLoaded', addScript);
+        document === null || document === void 0 ? void 0 : document.addEventListener('DOMContentLoaded', addScript);
     }
 };
-globals_1.assignableWindow.__PosthogExtensions__ = globals_1.assignableWindow.__PosthogExtensions__ || {};
-globals_1.assignableWindow.__PosthogExtensions__.loadExternalDependency = function (posthog, kind, callback) {
-    var scriptUrlToLoad = "/static/".concat(kind, ".js") + "?v=".concat(posthog.version);
+assignableWindow.__PosthogExtensions__ = assignableWindow.__PosthogExtensions__ || {};
+assignableWindow.__PosthogExtensions__.loadExternalDependency = (posthog, kind, callback) => {
+    let scriptUrlToLoad = `/static/${kind}.js` + `?v=${posthog.version}`;
     if (kind === 'remote-config') {
-        scriptUrlToLoad = "/array/".concat(posthog.config.token, "/config.js");
+        scriptUrlToLoad = `/array/${posthog.config.token}/config.js`;
     }
     if (kind === 'toolbar') {
         // toolbar.js is served from the PostHog CDN, this has a TTL of 24 hours.
         // the toolbar asset includes a rotating "token" that is valid for 5 minutes.
-        var fiveMinutesInMillis = 5 * 60 * 1000;
+        const fiveMinutesInMillis = 5 * 60 * 1000;
         // this ensures that we bust the cache periodically
-        var timestampToNearestFiveMinutes = Math.floor(Date.now() / fiveMinutesInMillis) * fiveMinutesInMillis;
-        scriptUrlToLoad = "".concat(scriptUrlToLoad, "&t=").concat(timestampToNearestFiveMinutes);
+        const timestampToNearestFiveMinutes = Math.floor(Date.now() / fiveMinutesInMillis) * fiveMinutesInMillis;
+        scriptUrlToLoad = `${scriptUrlToLoad}&t=${timestampToNearestFiveMinutes}`;
     }
-    var url = posthog.requestRouter.endpointFor('assets', scriptUrlToLoad);
+    const url = posthog.requestRouter.endpointFor('assets', scriptUrlToLoad);
     loadScript(posthog, url, callback);
 };
-globals_1.assignableWindow.__PosthogExtensions__.loadSiteApp = function (posthog, url, callback) {
-    var scriptUrl = posthog.requestRouter.endpointFor('api', url);
+assignableWindow.__PosthogExtensions__.loadSiteApp = (posthog, url, callback) => {
+    const scriptUrl = posthog.requestRouter.endpointFor('api', url);
     loadScript(posthog, scriptUrl, callback);
 };
-//# sourceMappingURL=external-scripts-loader.js.map

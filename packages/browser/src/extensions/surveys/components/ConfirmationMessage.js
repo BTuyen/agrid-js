@@ -1,69 +1,32 @@
-'use strict'
-Object.defineProperty(exports, '__esModule', { value: true })
-exports.ConfirmationMessage = ConfirmationMessage
-var jsx_runtime_1 = require('react/jsx-runtime')
-var preact_1 = require('preact')
-var surveys_extension_utils_1 = require('../surveys-extension-utils')
-var BottomSection_1 = require('./BottomSection')
-var QuestionHeader_1 = require('./QuestionHeader')
-var hooks_1 = require('preact/hooks')
-var surveys_extension_utils_2 = require('../surveys-extension-utils')
-var utils_1 = require('../../../utils')
-var globals_1 = require('../../../utils/globals')
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { h } from 'preact';
+import { renderChildrenAsTextOrHtml } from '../surveys-extension-utils';
+import { BottomSection } from './BottomSection';
+import { Cancel } from './QuestionHeader';
+import { useContext, useEffect } from 'preact/hooks';
+import { SurveyContext } from '../surveys-extension-utils';
+import { addEventListener } from '../../../utils';
+import { window as _window } from '../../../utils/globals';
 // We cast the types here which is dangerous but protected by the top level generateSurveys call
-var window = globals_1.window
-function ConfirmationMessage(_a) {
-    var header = _a.header,
-        description = _a.description,
-        contentType = _a.contentType,
-        forceDisableHtml = _a.forceDisableHtml,
-        appearance = _a.appearance,
-        onClose = _a.onClose
-    var isPopup = (0, hooks_1.useContext)(surveys_extension_utils_2.SurveyContext).isPopup
-    ;(0, hooks_1.useEffect)(
-        function () {
-            var handleKeyDown = function (event) {
-                if (event.key === 'Enter' || event.key === 'Escape') {
-                    event.preventDefault()
-                    onClose()
-                }
+const window = _window;
+export function ConfirmationMessage({ header, description, contentType, forceDisableHtml, appearance, onClose, }) {
+    const { isPopup } = useContext(SurveyContext);
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (event.key === 'Enter' || event.key === 'Escape') {
+                event.preventDefault();
+                onClose();
             }
-            ;(0, utils_1.addEventListener)(window, 'keydown', handleKeyDown)
-            return function () {
-                window.removeEventListener('keydown', handleKeyDown)
-            }
-        },
-        [onClose]
-    )
-    return (0, jsx_runtime_1.jsxs)('div', {
-        className: 'thank-you-message',
-        role: 'status',
-        tabIndex: 0,
-        'aria-atomic': 'true',
-        children: [
-            isPopup &&
-                (0, jsx_runtime_1.jsx)(QuestionHeader_1.Cancel, {
-                    onClick: function () {
-                        return onClose()
-                    },
-                }),
-            (0, jsx_runtime_1.jsx)('h3', { className: 'thank-you-message-header', children: header }),
-            description &&
-                (0, surveys_extension_utils_1.renderChildrenAsTextOrHtml)({
-                    component: (0, preact_1.h)('p', { className: 'thank-you-message-body' }),
+        };
+        addEventListener(window, 'keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onClose]);
+    return (_jsxs("div", { className: "thank-you-message", role: "status", tabIndex: 0, "aria-atomic": "true", children: [isPopup && _jsx(Cancel, { onClick: () => onClose() }), _jsx("h3", { className: "thank-you-message-header", children: header }), description &&
+                renderChildrenAsTextOrHtml({
+                    component: h('p', { className: 'thank-you-message-body' }),
                     children: description,
                     renderAsHtml: !forceDisableHtml && contentType !== 'text',
-                }),
-            isPopup &&
-                (0, jsx_runtime_1.jsx)(BottomSection_1.BottomSection, {
-                    text: appearance.thankYouMessageCloseButtonText || 'Close',
-                    submitDisabled: false,
-                    appearance: appearance,
-                    onSubmit: function () {
-                        return onClose()
-                    },
-                }),
-        ],
-    })
+                }), isPopup && (_jsx(BottomSection, { text: appearance.thankYouMessageCloseButtonText || 'Close', submitDisabled: false, appearance: appearance, onSubmit: () => onClose() }))] }));
 }
-//# sourceMappingURL=ConfirmationMessage.js.map

@@ -1,114 +1,29 @@
-'use strict'
-var __assign =
-    (this && this.__assign) ||
-    function () {
-        __assign =
-            Object.assign ||
-            function (t) {
-                for (var s, i = 1, n = arguments.length; i < n; i++) {
-                    s = arguments[i]
-                    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p]
-                }
-                return t
-            }
-        return __assign.apply(this, arguments)
-    }
-var __read =
-    (this && this.__read) ||
-    function (o, n) {
-        var m = typeof Symbol === 'function' && o[Symbol.iterator]
-        if (!m) return o
-        var i = m.call(o),
-            r,
-            ar = [],
-            e
-        try {
-            while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value)
-        } catch (error) {
-            e = { error: error }
-        } finally {
-            try {
-                if (r && !r.done && (m = i['return'])) m.call(i)
-            } finally {
-                if (e) throw e.error
-            }
-        }
-        return ar
-    }
-var __spreadArray =
-    (this && this.__spreadArray) ||
-    function (to, from, pack) {
-        if (pack || arguments.length === 2)
-            for (var i = 0, l = from.length, ar; i < l; i++) {
-                if (ar || !(i in from)) {
-                    if (!ar) ar = Array.prototype.slice.call(from, 0, i)
-                    ar[i] = from[i]
-                }
-            }
-        return to.concat(ar || Array.prototype.slice.call(from))
-    }
-var __importDefault =
-    (this && this.__importDefault) ||
-    function (mod) {
-        return mod && mod.__esModule ? mod : { default: mod }
-    }
-Object.defineProperty(exports, '__esModule', { value: true })
-exports.clearInProgressSurveyState =
-    exports.isSurveyInProgress =
-    exports.getInProgressSurveyState =
-    exports.setInProgressSurveyState =
-    exports.renderChildrenAsTextOrHtml =
-    exports.useSurveyContext =
-    exports.SurveyContext =
-    exports.hasWaitPeriodPassed =
-    exports.getSurveySeen =
-    exports.canActivateRepeatedly =
-    exports.hasEvents =
-    exports.getDisplayOrderQuestions =
-    exports.getDisplayOrderChoices =
-    exports.shuffle =
-    exports.dismissedSurveyEvent =
-    exports.sendSurveyEvent =
-    exports.retrieveSurveyShadow =
-    exports.addSurveyCSSVariablesToElement =
-    exports.defaultSurveyAppearance =
-        void 0
-exports.getFontFamily = getFontFamily
-exports.getSurveyResponseKey = getSurveyResponseKey
-exports.getSurveyStylesheet = getSurveyStylesheet
-exports.doesSurveyUrlMatch = doesSurveyUrlMatch
-exports.doesSurveyDeviceTypesMatch = doesSurveyDeviceTypesMatch
-exports.doesSurveyMatchSelector = doesSurveyMatchSelector
-exports.getSurveyContainerClass = getSurveyContainerClass
-var preact_1 = require('preact')
-var posthog_surveys_types_1 = require('../../posthog-surveys-types')
-var globals_1 = require('../../utils/globals')
-var survey_utils_1 = require('../../utils/survey-utils')
-var core_1 = require('@agrid/core')
-var user_agent_utils_1 = require('../../utils/user-agent-utils')
-var property_utils_1 = require('../../utils/property-utils')
-var stylesheet_loader_1 = require('../utils/stylesheet-loader')
+import { cloneElement, createContext } from 'preact';
+import { SurveyEventName, SurveyEventProperties, SurveyPosition, SurveySchedule, SurveyType, SurveyWidgetType, } from '../../posthog-surveys-types';
+import { document as _document, window as _window, userAgent } from '../../utils/globals';
+import { getSurveyInteractionProperty, getSurveySeenKey, SURVEY_LOGGER as logger, setSurveySeenOnLocalStorage, SURVEY_IN_PROGRESS_PREFIX, } from '../../utils/survey-utils';
+import { isArray, isNullish } from '@agrid/core';
+import { detectDeviceType } from '../../utils/user-agent-utils';
+import { propertyComparisons } from '../../utils/property-utils';
+import { prepareStylesheet } from '../utils/stylesheet-loader';
 // We cast the types here which is dangerous but protected by the top level generateSurveys call
-var window = globals_1.window
-var document = globals_1.document
-var survey_css_1 = __importDefault(require('./survey.css'))
-var hooks_1 = require('preact/hooks')
-function getFontFamily(fontFamily) {
+const window = _window;
+const document = _document;
+import surveyStyles from './survey.css';
+import { useContext } from 'preact/hooks';
+export function getFontFamily(fontFamily) {
     if (fontFamily === 'inherit') {
-        return 'inherit'
+        return 'inherit';
     }
-    var defaultFontStack =
-        'BlinkMacSystemFont, "Inter", "Segoe UI", "Roboto", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"'
-    return fontFamily
-        ? ''.concat(fontFamily, ', ').concat(defaultFontStack)
-        : '-apple-system, '.concat(defaultFontStack)
+    const defaultFontStack = 'BlinkMacSystemFont, "Inter", "Segoe UI", "Roboto", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"';
+    return fontFamily ? `${fontFamily}, ${defaultFontStack}` : `-apple-system, ${defaultFontStack}`;
 }
-function getSurveyResponseKey(questionId) {
-    return '$survey_response_'.concat(questionId)
+export function getSurveyResponseKey(questionId) {
+    return `$survey_response_${questionId}`;
 }
-var BLACK_TEXT_COLOR = '#020617' // Maps out to text-slate-950 from tailwind colors. Intended for text use outside interactive elements like buttons
+const BLACK_TEXT_COLOR = '#020617'; // Maps out to text-slate-950 from tailwind colors. Intended for text use outside interactive elements like buttons
 // Keep in sync with defaultSurveyAppearance on the main app
-exports.defaultSurveyAppearance = {
+export const defaultSurveyAppearance = {
     fontFamily: 'inherit',
     backgroundColor: '#eeeded',
     submitButtonColor: 'black',
@@ -120,8 +35,8 @@ exports.defaultSurveyAppearance = {
     whiteLabel: false,
     displayThankYouMessage: true,
     thankYouMessageHeader: 'Thank you for your feedback!',
-    position: posthog_surveys_types_1.SurveyPosition.Right,
-    widgetType: posthog_surveys_types_1.SurveyWidgetType.Tab,
+    position: SurveyPosition.Right,
+    widgetType: SurveyWidgetType.Tab,
     widgetLabel: 'Feedback',
     widgetColor: 'black',
     zIndex: '2147483647',
@@ -139,73 +54,50 @@ exports.defaultSurveyAppearance = {
     inputTextColor: BLACK_TEXT_COLOR,
     scrollbarThumbColor: 'var(--ph-survey-border-color)',
     scrollbarTrackColor: 'var(--ph-survey-background-color)',
-}
-var addSurveyCSSVariablesToElement = function (element, type, appearance) {
-    var effectiveAppearance = __assign(__assign({}, exports.defaultSurveyAppearance), appearance)
-    var hostStyle = element.style
-    var surveyHasBottomBorder =
-        ![
-            posthog_surveys_types_1.SurveyPosition.Center,
-            posthog_surveys_types_1.SurveyPosition.Left,
-            posthog_surveys_types_1.SurveyPosition.Right,
-        ].includes(effectiveAppearance.position) ||
-        (type === posthog_surveys_types_1.SurveyType.Widget &&
-            (appearance === null || appearance === void 0 ? void 0 : appearance.widgetType) ===
-                posthog_surveys_types_1.SurveyWidgetType.Tab)
-    hostStyle.setProperty('--ph-survey-font-family', getFontFamily(effectiveAppearance.fontFamily))
-    hostStyle.setProperty('--ph-survey-box-padding', effectiveAppearance.boxPadding)
-    hostStyle.setProperty('--ph-survey-max-width', effectiveAppearance.maxWidth)
-    hostStyle.setProperty('--ph-survey-z-index', effectiveAppearance.zIndex)
-    hostStyle.setProperty('--ph-survey-border-color', effectiveAppearance.borderColor)
+};
+export const addSurveyCSSVariablesToElement = (element, type, appearance) => {
+    const effectiveAppearance = { ...defaultSurveyAppearance, ...appearance };
+    const hostStyle = element.style;
+    const surveyHasBottomBorder = ![SurveyPosition.Center, SurveyPosition.Left, SurveyPosition.Right].includes(effectiveAppearance.position) ||
+        (type === SurveyType.Widget && (appearance === null || appearance === void 0 ? void 0 : appearance.widgetType) === SurveyWidgetType.Tab);
+    hostStyle.setProperty('--ph-survey-font-family', getFontFamily(effectiveAppearance.fontFamily));
+    hostStyle.setProperty('--ph-survey-box-padding', effectiveAppearance.boxPadding);
+    hostStyle.setProperty('--ph-survey-max-width', effectiveAppearance.maxWidth);
+    hostStyle.setProperty('--ph-survey-z-index', effectiveAppearance.zIndex);
+    hostStyle.setProperty('--ph-survey-border-color', effectiveAppearance.borderColor);
     // Non-bottom surveys or tab surveys have the border bottom
     if (surveyHasBottomBorder) {
-        hostStyle.setProperty('--ph-survey-border-radius', effectiveAppearance.borderRadius)
-        hostStyle.setProperty('--ph-survey-border-bottom', '1.5px solid var(--ph-survey-border-color)')
-    } else {
-        hostStyle.setProperty('--ph-survey-border-bottom', 'none')
-        hostStyle.setProperty(
-            '--ph-survey-border-radius',
-            ''.concat(effectiveAppearance.borderRadius, ' ').concat(effectiveAppearance.borderRadius, ' 0 0')
-        )
+        hostStyle.setProperty('--ph-survey-border-radius', effectiveAppearance.borderRadius);
+        hostStyle.setProperty('--ph-survey-border-bottom', '1.5px solid var(--ph-survey-border-color)');
     }
-    hostStyle.setProperty('--ph-survey-background-color', effectiveAppearance.backgroundColor)
-    hostStyle.setProperty('--ph-survey-box-shadow', effectiveAppearance.boxShadow)
-    hostStyle.setProperty('--ph-survey-disabled-button-opacity', effectiveAppearance.disabledButtonOpacity)
-    hostStyle.setProperty('--ph-survey-submit-button-color', effectiveAppearance.submitButtonColor)
-    hostStyle.setProperty(
-        '--ph-survey-submit-button-text-color',
-        (appearance === null || appearance === void 0 ? void 0 : appearance.submitButtonTextColor) ||
-            getContrastingTextColor(effectiveAppearance.submitButtonColor)
-    )
-    hostStyle.setProperty('--ph-survey-rating-bg-color', effectiveAppearance.ratingButtonColor)
-    hostStyle.setProperty(
-        '--ph-survey-rating-text-color',
-        getContrastingTextColor(effectiveAppearance.ratingButtonColor)
-    )
-    hostStyle.setProperty('--ph-survey-rating-active-bg-color', effectiveAppearance.ratingButtonActiveColor)
-    hostStyle.setProperty(
-        '--ph-survey-rating-active-text-color',
-        getContrastingTextColor(effectiveAppearance.ratingButtonActiveColor)
-    )
-    hostStyle.setProperty(
-        '--ph-survey-text-primary-color',
-        getContrastingTextColor(effectiveAppearance.backgroundColor)
-    )
-    hostStyle.setProperty('--ph-survey-text-subtle-color', effectiveAppearance.textSubtleColor)
-    hostStyle.setProperty('--ph-widget-color', effectiveAppearance.widgetColor)
-    hostStyle.setProperty('--ph-widget-text-color', getContrastingTextColor(effectiveAppearance.widgetColor))
-    hostStyle.setProperty('--ph-widget-z-index', effectiveAppearance.zIndex)
+    else {
+        hostStyle.setProperty('--ph-survey-border-bottom', 'none');
+        hostStyle.setProperty('--ph-survey-border-radius', `${effectiveAppearance.borderRadius} ${effectiveAppearance.borderRadius} 0 0`);
+    }
+    hostStyle.setProperty('--ph-survey-background-color', effectiveAppearance.backgroundColor);
+    hostStyle.setProperty('--ph-survey-box-shadow', effectiveAppearance.boxShadow);
+    hostStyle.setProperty('--ph-survey-disabled-button-opacity', effectiveAppearance.disabledButtonOpacity);
+    hostStyle.setProperty('--ph-survey-submit-button-color', effectiveAppearance.submitButtonColor);
+    hostStyle.setProperty('--ph-survey-submit-button-text-color', (appearance === null || appearance === void 0 ? void 0 : appearance.submitButtonTextColor) || getContrastingTextColor(effectiveAppearance.submitButtonColor));
+    hostStyle.setProperty('--ph-survey-rating-bg-color', effectiveAppearance.ratingButtonColor);
+    hostStyle.setProperty('--ph-survey-rating-text-color', getContrastingTextColor(effectiveAppearance.ratingButtonColor));
+    hostStyle.setProperty('--ph-survey-rating-active-bg-color', effectiveAppearance.ratingButtonActiveColor);
+    hostStyle.setProperty('--ph-survey-rating-active-text-color', getContrastingTextColor(effectiveAppearance.ratingButtonActiveColor));
+    hostStyle.setProperty('--ph-survey-text-primary-color', getContrastingTextColor(effectiveAppearance.backgroundColor));
+    hostStyle.setProperty('--ph-survey-text-subtle-color', effectiveAppearance.textSubtleColor);
+    hostStyle.setProperty('--ph-widget-color', effectiveAppearance.widgetColor);
+    hostStyle.setProperty('--ph-widget-text-color', getContrastingTextColor(effectiveAppearance.widgetColor));
+    hostStyle.setProperty('--ph-widget-z-index', effectiveAppearance.zIndex);
     // Adjust input/choice background slightly if main background is white
     if (effectiveAppearance.backgroundColor === 'white') {
-        hostStyle.setProperty('--ph-survey-input-background', '#f8f8f8')
+        hostStyle.setProperty('--ph-survey-input-background', '#f8f8f8');
     }
-    hostStyle.setProperty('--ph-survey-input-background', effectiveAppearance.inputBackground)
-    hostStyle.setProperty('--ph-survey-input-text-color', getContrastingTextColor(effectiveAppearance.inputBackground))
-    hostStyle.setProperty('--ph-survey-scrollbar-thumb-color', effectiveAppearance.scrollbarThumbColor)
-    hostStyle.setProperty('--ph-survey-scrollbar-track-color', effectiveAppearance.scrollbarTrackColor)
-    hostStyle.setProperty('--ph-survey-outline-color', effectiveAppearance.outlineColor)
-}
-exports.addSurveyCSSVariablesToElement = addSurveyCSSVariablesToElement
+    hostStyle.setProperty('--ph-survey-input-background', effectiveAppearance.inputBackground);
+    hostStyle.setProperty('--ph-survey-input-text-color', getContrastingTextColor(effectiveAppearance.inputBackground));
+    hostStyle.setProperty('--ph-survey-scrollbar-thumb-color', effectiveAppearance.scrollbarThumbColor);
+    hostStyle.setProperty('--ph-survey-scrollbar-track-color', effectiveAppearance.scrollbarTrackColor);
+    hostStyle.setProperty('--ph-survey-outline-color', effectiveAppearance.outlineColor);
+};
 function nameToHex(name) {
     return {
         aliceblue: '#f0f8ff',
@@ -348,441 +240,324 @@ function nameToHex(name) {
         whitesmoke: '#f5f5f5',
         yellow: '#ffff00',
         yellowgreen: '#9acd32',
-    }[name.toLowerCase()]
+    }[name.toLowerCase()];
 }
 function hex2rgb(c) {
     if (c[0] === '#') {
-        var hexColor = c.replace(/^#/, '')
-        var r = parseInt(hexColor.slice(0, 2), 16)
-        var g = parseInt(hexColor.slice(2, 4), 16)
-        var b = parseInt(hexColor.slice(4, 6), 16)
-        return 'rgb(' + r + ',' + g + ',' + b + ')'
+        const hexColor = c.replace(/^#/, '');
+        const r = parseInt(hexColor.slice(0, 2), 16);
+        const g = parseInt(hexColor.slice(2, 4), 16);
+        const b = parseInt(hexColor.slice(4, 6), 16);
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
     }
-    return 'rgb(255, 255, 255)'
+    return 'rgb(255, 255, 255)';
 }
-function getContrastingTextColor(color) {
-    if (color === void 0) {
-        color = exports.defaultSurveyAppearance.backgroundColor
-    }
-    var rgb
+function getContrastingTextColor(color = defaultSurveyAppearance.backgroundColor) {
+    let rgb;
     if (color[0] === '#') {
-        rgb = hex2rgb(color)
+        rgb = hex2rgb(color);
     }
     if (color.startsWith('rgb')) {
-        rgb = color
+        rgb = color;
     }
     // otherwise it's a color name
-    var nameColorToHex = nameToHex(color)
+    const nameColorToHex = nameToHex(color);
     if (nameColorToHex) {
-        rgb = hex2rgb(nameColorToHex)
+        rgb = hex2rgb(nameColorToHex);
     }
     if (!rgb) {
-        return BLACK_TEXT_COLOR
+        return BLACK_TEXT_COLOR;
     }
-    var colorMatch = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/)
+    const colorMatch = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/);
     if (colorMatch) {
-        var r = parseInt(colorMatch[1])
-        var g = parseInt(colorMatch[2])
-        var b = parseInt(colorMatch[3])
-        var hsp = Math.sqrt(0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b))
-        return hsp > 127.5 ? BLACK_TEXT_COLOR : 'white'
+        const r = parseInt(colorMatch[1]);
+        const g = parseInt(colorMatch[2]);
+        const b = parseInt(colorMatch[3]);
+        const hsp = Math.sqrt(0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b));
+        return hsp > 127.5 ? BLACK_TEXT_COLOR : 'white';
     }
-    return BLACK_TEXT_COLOR
+    return BLACK_TEXT_COLOR;
 }
-function getSurveyStylesheet(posthog) {
-    var stylesheet = (0, stylesheet_loader_1.prepareStylesheet)(
-        document,
-        typeof survey_css_1.default === 'string' ? survey_css_1.default : '',
-        posthog
-    )
-    stylesheet === null || stylesheet === void 0 ? void 0 : stylesheet.setAttribute('data-ph-survey-style', 'true')
-    return stylesheet
+export function getSurveyStylesheet(posthog) {
+    const stylesheet = prepareStylesheet(document, typeof surveyStyles === 'string' ? surveyStyles : '', posthog);
+    stylesheet === null || stylesheet === void 0 ? void 0 : stylesheet.setAttribute('data-ph-survey-style', 'true');
+    return stylesheet;
 }
-var retrieveSurveyShadow = function (survey, posthog, element) {
-    var widgetClassName = getSurveyContainerClass(survey)
-    var existingDiv = document.querySelector('.'.concat(widgetClassName))
+export const retrieveSurveyShadow = (survey, posthog, element) => {
+    const widgetClassName = getSurveyContainerClass(survey);
+    const existingDiv = document.querySelector(`.${widgetClassName}`);
     if (existingDiv && existingDiv.shadowRoot) {
         return {
             shadow: existingDiv.shadowRoot,
             isNewlyCreated: false,
-        }
+        };
     }
     // If it doesn't exist, create it
-    var div = document.createElement('div')
-    ;(0, exports.addSurveyCSSVariablesToElement)(div, survey.type, survey.appearance)
-    div.className = widgetClassName
-    var shadow = div.attachShadow({ mode: 'open' })
-    var stylesheet = getSurveyStylesheet(posthog)
+    const div = document.createElement('div');
+    addSurveyCSSVariablesToElement(div, survey.type, survey.appearance);
+    div.className = widgetClassName;
+    const shadow = div.attachShadow({ mode: 'open' });
+    const stylesheet = getSurveyStylesheet(posthog);
     if (stylesheet) {
-        var existingStylesheet = shadow.querySelector('style')
+        const existingStylesheet = shadow.querySelector('style');
         if (existingStylesheet) {
-            shadow.removeChild(existingStylesheet)
+            shadow.removeChild(existingStylesheet);
         }
-        shadow.appendChild(stylesheet)
+        shadow.appendChild(stylesheet);
     }
-    ;(element ? element : document.body).appendChild(div)
+    ;
+    (element ? element : document.body).appendChild(div);
     return {
-        shadow: shadow,
+        shadow,
         isNewlyCreated: true,
-    }
-}
-exports.retrieveSurveyShadow = retrieveSurveyShadow
-var getSurveyResponseValue = function (responses, questionId) {
+    };
+};
+const getSurveyResponseValue = (responses, questionId) => {
     if (!questionId) {
-        return null
+        return null;
     }
-    var response = responses[getSurveyResponseKey(questionId)]
-    if ((0, core_1.isArray)(response)) {
-        return __spreadArray([], __read(response), false)
+    const response = responses[getSurveyResponseKey(questionId)];
+    if (isArray(response)) {
+        return [...response];
     }
-    return response
-}
-var sendSurveyEvent = function (_a) {
-    var _b, _c
-    var _d
-    var responses = _a.responses,
-        survey = _a.survey,
-        surveySubmissionId = _a.surveySubmissionId,
-        posthog = _a.posthog,
-        isSurveyCompleted = _a.isSurveyCompleted
+    return response;
+};
+export const sendSurveyEvent = ({ responses, survey, surveySubmissionId, posthog, isSurveyCompleted, }) => {
+    var _a;
     if (!posthog) {
-        survey_utils_1.SURVEY_LOGGER.error('[survey sent] event not captured, PostHog instance not found.')
-        return
+        logger.error('[survey sent] event not captured, PostHog instance not found.');
+        return;
     }
-    ;(0, survey_utils_1.setSurveySeenOnLocalStorage)(survey)
-    posthog.capture(
-        posthog_surveys_types_1.SurveyEventName.SENT,
-        __assign(
-            __assign(
-                ((_b = {}),
-                (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_NAME] = survey.name),
-                (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_ID] = survey.id),
-                (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_ITERATION] = survey.current_iteration),
-                (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_ITERATION_START_DATE] =
-                    survey.current_iteration_start_date),
-                (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_QUESTIONS] = survey.questions.map(
-                    function (question) {
-                        return {
-                            id: question.id,
-                            question: question.question,
-                            response: getSurveyResponseValue(responses, question.id),
-                        }
-                    }
-                )),
-                (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_SUBMISSION_ID] = surveySubmissionId),
-                (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_COMPLETED] = isSurveyCompleted),
-                (_b.sessionRecordingUrl =
-                    (_d = posthog.get_session_replay_url) === null || _d === void 0 ? void 0 : _d.call(posthog)),
-                _b),
-                responses
-            ),
-            {
-                $set:
-                    ((_c = {}), (_c[(0, survey_utils_1.getSurveyInteractionProperty)(survey, 'responded')] = true), _c),
-            }
-        )
-    )
+    setSurveySeenOnLocalStorage(survey);
+    posthog.capture(SurveyEventName.SENT, {
+        [SurveyEventProperties.SURVEY_NAME]: survey.name,
+        [SurveyEventProperties.SURVEY_ID]: survey.id,
+        [SurveyEventProperties.SURVEY_ITERATION]: survey.current_iteration,
+        [SurveyEventProperties.SURVEY_ITERATION_START_DATE]: survey.current_iteration_start_date,
+        [SurveyEventProperties.SURVEY_QUESTIONS]: survey.questions.map((question) => ({
+            id: question.id,
+            question: question.question,
+            response: getSurveyResponseValue(responses, question.id),
+        })),
+        [SurveyEventProperties.SURVEY_SUBMISSION_ID]: surveySubmissionId,
+        [SurveyEventProperties.SURVEY_COMPLETED]: isSurveyCompleted,
+        sessionRecordingUrl: (_a = posthog.get_session_replay_url) === null || _a === void 0 ? void 0 : _a.call(posthog),
+        ...responses,
+        $set: {
+            [getSurveyInteractionProperty(survey, 'responded')]: true,
+        },
+    });
     if (isSurveyCompleted) {
         // Only dispatch PHSurveySent if the survey is completed, as that removes the survey from focus
-        window.dispatchEvent(new CustomEvent('PHSurveySent', { detail: { surveyId: survey.id } }))
-        ;(0, exports.clearInProgressSurveyState)(survey)
+        window.dispatchEvent(new CustomEvent('PHSurveySent', { detail: { surveyId: survey.id } }));
+        clearInProgressSurveyState(survey);
     }
-}
-exports.sendSurveyEvent = sendSurveyEvent
-var dismissedSurveyEvent = function (survey, posthog, readOnly) {
-    var _a, _b, _c
-    var _d
+};
+export const dismissedSurveyEvent = (survey, posthog, readOnly) => {
+    var _a;
     if (!posthog) {
-        survey_utils_1.SURVEY_LOGGER.error('[survey dismissed] event not captured, PostHog instance not found.')
-        return
+        logger.error('[survey dismissed] event not captured, PostHog instance not found.');
+        return;
     }
     if (readOnly) {
-        return
+        return;
     }
-    var inProgressSurvey = (0, exports.getInProgressSurveyState)(survey)
-    posthog.capture(
-        posthog_surveys_types_1.SurveyEventName.DISMISSED,
-        __assign(
-            __assign(
-                ((_a = {}),
-                (_a[posthog_surveys_types_1.SurveyEventProperties.SURVEY_NAME] = survey.name),
-                (_a[posthog_surveys_types_1.SurveyEventProperties.SURVEY_ID] = survey.id),
-                (_a[posthog_surveys_types_1.SurveyEventProperties.SURVEY_ITERATION] = survey.current_iteration),
-                (_a[posthog_surveys_types_1.SurveyEventProperties.SURVEY_ITERATION_START_DATE] =
-                    survey.current_iteration_start_date),
-                (_a[posthog_surveys_types_1.SurveyEventProperties.SURVEY_PARTIALLY_COMPLETED] =
-                    Object.values(
-                        (inProgressSurvey === null || inProgressSurvey === void 0
-                            ? void 0
-                            : inProgressSurvey.responses) || {}
-                    ).filter(function (resp) {
-                        return !(0, core_1.isNullish)(resp)
-                    }).length > 0),
-                (_a.sessionRecordingUrl =
-                    (_d = posthog.get_session_replay_url) === null || _d === void 0 ? void 0 : _d.call(posthog)),
-                _a),
-                inProgressSurvey === null || inProgressSurvey === void 0 ? void 0 : inProgressSurvey.responses
-            ),
-            ((_b = {}),
-            (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_SUBMISSION_ID] =
-                inProgressSurvey === null || inProgressSurvey === void 0
-                    ? void 0
-                    : inProgressSurvey.surveySubmissionId),
-            (_b[posthog_surveys_types_1.SurveyEventProperties.SURVEY_QUESTIONS] = survey.questions.map(
-                function (question) {
-                    return {
-                        id: question.id,
-                        question: question.question,
-                        response: getSurveyResponseValue(
-                            (inProgressSurvey === null || inProgressSurvey === void 0
-                                ? void 0
-                                : inProgressSurvey.responses) || {},
-                            question.id
-                        ),
-                    }
-                }
-            )),
-            (_b.$set =
-                ((_c = {}), (_c[(0, survey_utils_1.getSurveyInteractionProperty)(survey, 'dismissed')] = true), _c)),
-            _b)
-        )
-    )
+    const inProgressSurvey = getInProgressSurveyState(survey);
+    posthog.capture(SurveyEventName.DISMISSED, {
+        [SurveyEventProperties.SURVEY_NAME]: survey.name,
+        [SurveyEventProperties.SURVEY_ID]: survey.id,
+        [SurveyEventProperties.SURVEY_ITERATION]: survey.current_iteration,
+        [SurveyEventProperties.SURVEY_ITERATION_START_DATE]: survey.current_iteration_start_date,
+        // check if the survey is partially completed
+        [SurveyEventProperties.SURVEY_PARTIALLY_COMPLETED]: Object.values((inProgressSurvey === null || inProgressSurvey === void 0 ? void 0 : inProgressSurvey.responses) || {}).filter((resp) => !isNullish(resp)).length > 0,
+        sessionRecordingUrl: (_a = posthog.get_session_replay_url) === null || _a === void 0 ? void 0 : _a.call(posthog),
+        ...inProgressSurvey === null || inProgressSurvey === void 0 ? void 0 : inProgressSurvey.responses,
+        [SurveyEventProperties.SURVEY_SUBMISSION_ID]: inProgressSurvey === null || inProgressSurvey === void 0 ? void 0 : inProgressSurvey.surveySubmissionId,
+        [SurveyEventProperties.SURVEY_QUESTIONS]: survey.questions.map((question) => ({
+            id: question.id,
+            question: question.question,
+            response: getSurveyResponseValue((inProgressSurvey === null || inProgressSurvey === void 0 ? void 0 : inProgressSurvey.responses) || {}, question.id),
+        })),
+        $set: {
+            [getSurveyInteractionProperty(survey, 'dismissed')]: true,
+        },
+    });
     // Clear in-progress state on dismissal
-    ;(0, exports.clearInProgressSurveyState)(survey)
-    ;(0, survey_utils_1.setSurveySeenOnLocalStorage)(survey)
-    window.dispatchEvent(new CustomEvent('PHSurveyClosed', { detail: { surveyId: survey.id } }))
-}
-exports.dismissedSurveyEvent = dismissedSurveyEvent
+    clearInProgressSurveyState(survey);
+    setSurveySeenOnLocalStorage(survey);
+    window.dispatchEvent(new CustomEvent('PHSurveyClosed', { detail: { surveyId: survey.id } }));
+};
 // Use the Fisher-yates algorithm to shuffle this array
 // https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
-var shuffle = function (array) {
+export const shuffle = (array) => {
     return array
-        .map(function (a) {
-            return { sort: Math.floor(Math.random() * 10), value: a }
-        })
-        .sort(function (a, b) {
-            return a.sort - b.sort
-        })
-        .map(function (a) {
-            return a.value
-        })
-}
-exports.shuffle = shuffle
-var reverseIfUnshuffled = function (unshuffled, shuffled) {
-    if (
-        unshuffled.length === shuffled.length &&
-        unshuffled.every(function (val, index) {
-            return val === shuffled[index]
-        })
-    ) {
-        return shuffled.reverse()
+        .map((a) => ({ sort: Math.floor(Math.random() * 10), value: a }))
+        .sort((a, b) => a.sort - b.sort)
+        .map((a) => a.value);
+};
+const reverseIfUnshuffled = (unshuffled, shuffled) => {
+    if (unshuffled.length === shuffled.length && unshuffled.every((val, index) => val === shuffled[index])) {
+        return shuffled.reverse();
     }
-    return shuffled
-}
-var getDisplayOrderChoices = function (question) {
+    return shuffled;
+};
+export const getDisplayOrderChoices = (question) => {
     if (!question.shuffleOptions) {
-        return question.choices
+        return question.choices;
     }
-    var displayOrderChoices = question.choices
-    var openEndedChoice = ''
+    const displayOrderChoices = question.choices;
+    let openEndedChoice = '';
     if (question.hasOpenChoice) {
         // if the question has an open-ended choice, its always the last element in the choices array.
-        openEndedChoice = displayOrderChoices.pop()
+        openEndedChoice = displayOrderChoices.pop();
     }
-    var shuffledOptions = reverseIfUnshuffled(displayOrderChoices, (0, exports.shuffle)(displayOrderChoices))
+    const shuffledOptions = reverseIfUnshuffled(displayOrderChoices, shuffle(displayOrderChoices));
     if (question.hasOpenChoice) {
-        question.choices.push(openEndedChoice)
-        shuffledOptions.push(openEndedChoice)
+        question.choices.push(openEndedChoice);
+        shuffledOptions.push(openEndedChoice);
     }
-    return shuffledOptions
-}
-exports.getDisplayOrderChoices = getDisplayOrderChoices
-var getDisplayOrderQuestions = function (survey) {
+    return shuffledOptions;
+};
+export const getDisplayOrderQuestions = (survey) => {
     if (!survey.appearance || !survey.appearance.shuffleQuestions || survey.enable_partial_responses) {
-        return survey.questions
+        return survey.questions;
     }
-    return reverseIfUnshuffled(survey.questions, (0, exports.shuffle)(survey.questions))
-}
-exports.getDisplayOrderQuestions = getDisplayOrderQuestions
-var hasEvents = function (survey) {
-    var _a, _b, _c, _d, _e, _f
-    return (
-        ((_c =
-            (_b = (_a = survey.conditions) === null || _a === void 0 ? void 0 : _a.events) === null || _b === void 0
-                ? void 0
-                : _b.values) === null || _c === void 0
-            ? void 0
-            : _c.length) != undefined &&
-        ((_f =
-            (_e = (_d = survey.conditions) === null || _d === void 0 ? void 0 : _d.events) === null || _e === void 0
-                ? void 0
-                : _e.values) === null || _f === void 0
-            ? void 0
-            : _f.length) > 0
-    )
-}
-exports.hasEvents = hasEvents
-var canActivateRepeatedly = function (survey) {
-    var _a, _b
-    return (
-        !!(
-            ((_b = (_a = survey.conditions) === null || _a === void 0 ? void 0 : _a.events) === null || _b === void 0
-                ? void 0
-                : _b.repeatedActivation) && (0, exports.hasEvents)(survey)
-        ) ||
-        survey.schedule === posthog_surveys_types_1.SurveySchedule.Always ||
-        (0, exports.isSurveyInProgress)(survey)
-    )
-}
-exports.canActivateRepeatedly = canActivateRepeatedly
+    return reverseIfUnshuffled(survey.questions, shuffle(survey.questions));
+};
+export const hasEvents = (survey) => {
+    var _a, _b, _c, _d, _e, _f;
+    return ((_c = (_b = (_a = survey.conditions) === null || _a === void 0 ? void 0 : _a.events) === null || _b === void 0 ? void 0 : _b.values) === null || _c === void 0 ? void 0 : _c.length) != undefined && ((_f = (_e = (_d = survey.conditions) === null || _d === void 0 ? void 0 : _d.events) === null || _e === void 0 ? void 0 : _e.values) === null || _f === void 0 ? void 0 : _f.length) > 0;
+};
+export const canActivateRepeatedly = (survey) => {
+    var _a, _b;
+    return (!!(((_b = (_a = survey.conditions) === null || _a === void 0 ? void 0 : _a.events) === null || _b === void 0 ? void 0 : _b.repeatedActivation) && hasEvents(survey)) ||
+        survey.schedule === SurveySchedule.Always ||
+        isSurveyInProgress(survey));
+};
 /**
  * getSurveySeen checks local storage for the surveySeen Key a
  * and overrides this value if the survey can be repeatedly activated by its events.
  * @param survey
  */
-var getSurveySeen = function (survey) {
-    var surveySeen = localStorage.getItem((0, survey_utils_1.getSurveySeenKey)(survey))
+export const getSurveySeen = (survey) => {
+    const surveySeen = localStorage.getItem(getSurveySeenKey(survey));
     if (surveySeen) {
         // if a survey has already been seen,
         // we will override it with the event repeated activation value.
-        return !(0, exports.canActivateRepeatedly)(survey)
+        return !canActivateRepeatedly(survey);
     }
-    return false
-}
-exports.getSurveySeen = getSurveySeen
-var LAST_SEEN_SURVEY_DATE_KEY = 'lastSeenSurveyDate'
-var hasWaitPeriodPassed = function (waitPeriodInDays) {
-    var lastSeenSurveyDate = localStorage.getItem(LAST_SEEN_SURVEY_DATE_KEY)
+    return false;
+};
+const LAST_SEEN_SURVEY_DATE_KEY = 'lastSeenSurveyDate';
+export const hasWaitPeriodPassed = (waitPeriodInDays) => {
+    const lastSeenSurveyDate = localStorage.getItem(LAST_SEEN_SURVEY_DATE_KEY);
     if (!waitPeriodInDays || !lastSeenSurveyDate) {
-        return true
+        return true;
     }
-    var today = new Date()
-    var diff = Math.abs(today.getTime() - new Date(lastSeenSurveyDate).getTime())
-    var diffDaysFromToday = Math.ceil(diff / (1000 * 3600 * 24))
-    return diffDaysFromToday > waitPeriodInDays
-}
-exports.hasWaitPeriodPassed = hasWaitPeriodPassed
-exports.SurveyContext = (0, preact_1.createContext)({
+    const today = new Date();
+    const diff = Math.abs(today.getTime() - new Date(lastSeenSurveyDate).getTime());
+    const diffDaysFromToday = Math.ceil(diff / (1000 * 3600 * 24));
+    return diffDaysFromToday > waitPeriodInDays;
+};
+export const SurveyContext = createContext({
     isPreviewMode: false,
     previewPageIndex: 0,
-    onPopupSurveyDismissed: function () {},
+    onPopupSurveyDismissed: () => { },
     isPopup: true,
-    onPreviewSubmit: function () {},
+    onPreviewSubmit: () => { },
     surveySubmissionId: '',
-})
-var useSurveyContext = function () {
-    return (0, hooks_1.useContext)(exports.SurveyContext)
-}
-exports.useSurveyContext = useSurveyContext
-var renderChildrenAsTextOrHtml = function (_a) {
-    var component = _a.component,
-        children = _a.children,
-        renderAsHtml = _a.renderAsHtml,
-        style = _a.style
+});
+export const useSurveyContext = () => {
+    return useContext(SurveyContext);
+};
+export const renderChildrenAsTextOrHtml = ({ component, children, renderAsHtml, style }) => {
     return renderAsHtml
-        ? (0, preact_1.cloneElement)(component, {
-              dangerouslySetInnerHTML: { __html: children },
-              style: style,
-          })
-        : (0, preact_1.cloneElement)(component, {
-              children: children,
-              style: style,
-          })
-}
-exports.renderChildrenAsTextOrHtml = renderChildrenAsTextOrHtml
+        ? cloneElement(component, {
+            dangerouslySetInnerHTML: { __html: children },
+            style,
+        })
+        : cloneElement(component, {
+            children,
+            style,
+        });
+};
 function defaultMatchType(matchType) {
-    return matchType !== null && matchType !== void 0 ? matchType : 'icontains'
+    return matchType !== null && matchType !== void 0 ? matchType : 'icontains';
 }
 // use urlMatchType to validate url condition, fallback to contains for backwards compatibility
-function doesSurveyUrlMatch(survey) {
-    var _a, _b, _c
+export function doesSurveyUrlMatch(survey) {
+    var _a, _b, _c;
     if (!((_a = survey.conditions) === null || _a === void 0 ? void 0 : _a.url)) {
-        return true
+        return true;
     }
     // if we dont know the url, assume it is not a match
-    var href =
-        (_b = window === null || window === void 0 ? void 0 : window.location) === null || _b === void 0
-            ? void 0
-            : _b.href
+    const href = (_b = window === null || window === void 0 ? void 0 : window.location) === null || _b === void 0 ? void 0 : _b.href;
     if (!href) {
-        return false
+        return false;
     }
-    var targets = [survey.conditions.url]
-    var matchType = defaultMatchType((_c = survey.conditions) === null || _c === void 0 ? void 0 : _c.urlMatchType)
-    return property_utils_1.propertyComparisons[matchType](targets, [href])
+    const targets = [survey.conditions.url];
+    const matchType = defaultMatchType((_c = survey.conditions) === null || _c === void 0 ? void 0 : _c.urlMatchType);
+    return propertyComparisons[matchType](targets, [href]);
 }
-function doesSurveyDeviceTypesMatch(survey) {
-    var _a, _b, _c
-    if (
-        !((_a = survey.conditions) === null || _a === void 0 ? void 0 : _a.deviceTypes) ||
-        ((_b = survey.conditions) === null || _b === void 0 ? void 0 : _b.deviceTypes.length) === 0
-    ) {
-        return true
+export function doesSurveyDeviceTypesMatch(survey) {
+    var _a, _b, _c;
+    if (!((_a = survey.conditions) === null || _a === void 0 ? void 0 : _a.deviceTypes) || ((_b = survey.conditions) === null || _b === void 0 ? void 0 : _b.deviceTypes.length) === 0) {
+        return true;
     }
     // if we dont know the device type, assume it is not a match
-    if (!globals_1.userAgent) {
-        return false
+    if (!userAgent) {
+        return false;
     }
-    var deviceType = (0, user_agent_utils_1.detectDeviceType)(globals_1.userAgent)
-    return property_utils_1.propertyComparisons[
-        defaultMatchType((_c = survey.conditions) === null || _c === void 0 ? void 0 : _c.deviceTypesMatchType)
-    ](survey.conditions.deviceTypes, [deviceType])
+    const deviceType = detectDeviceType(userAgent);
+    return propertyComparisons[defaultMatchType((_c = survey.conditions) === null || _c === void 0 ? void 0 : _c.deviceTypesMatchType)](survey.conditions.deviceTypes, [deviceType]);
 }
-function doesSurveyMatchSelector(survey) {
-    var _a
+export function doesSurveyMatchSelector(survey) {
+    var _a;
     if (!((_a = survey.conditions) === null || _a === void 0 ? void 0 : _a.selector)) {
-        return true
+        return true;
     }
-    return !!(document === null || document === void 0 ? void 0 : document.querySelector(survey.conditions.selector))
+    return !!(document === null || document === void 0 ? void 0 : document.querySelector(survey.conditions.selector));
 }
-var getInProgressSurveyStateKey = function (survey) {
-    var key = ''.concat(survey_utils_1.SURVEY_IN_PROGRESS_PREFIX).concat(survey.id)
+const getInProgressSurveyStateKey = (survey) => {
+    let key = `${SURVEY_IN_PROGRESS_PREFIX}${survey.id}`;
     if (survey.current_iteration && survey.current_iteration > 0) {
-        key = ''
-            .concat(survey_utils_1.SURVEY_IN_PROGRESS_PREFIX)
-            .concat(survey.id, '_')
-            .concat(survey.current_iteration)
+        key = `${SURVEY_IN_PROGRESS_PREFIX}${survey.id}_${survey.current_iteration}`;
     }
-    return key
-}
-var setInProgressSurveyState = function (survey, state) {
+    return key;
+};
+export const setInProgressSurveyState = (survey, state) => {
     try {
-        localStorage.setItem(getInProgressSurveyStateKey(survey), JSON.stringify(state))
-    } catch (e) {
-        survey_utils_1.SURVEY_LOGGER.error('Error setting in-progress survey state in localStorage', e)
+        localStorage.setItem(getInProgressSurveyStateKey(survey), JSON.stringify(state));
     }
-}
-exports.setInProgressSurveyState = setInProgressSurveyState
-var getInProgressSurveyState = function (survey) {
+    catch (e) {
+        logger.error('Error setting in-progress survey state in localStorage', e);
+    }
+};
+export const getInProgressSurveyState = (survey) => {
     try {
-        var stateString = localStorage.getItem(getInProgressSurveyStateKey(survey))
+        const stateString = localStorage.getItem(getInProgressSurveyStateKey(survey));
         if (stateString) {
-            return JSON.parse(stateString)
+            return JSON.parse(stateString);
         }
-    } catch (e) {
-        survey_utils_1.SURVEY_LOGGER.error('Error getting in-progress survey state from localStorage', e)
     }
-    return null
-}
-exports.getInProgressSurveyState = getInProgressSurveyState
-var isSurveyInProgress = function (survey) {
-    var state = (0, exports.getInProgressSurveyState)(survey)
-    return !(0, core_1.isNullish)(state === null || state === void 0 ? void 0 : state.surveySubmissionId)
-}
-exports.isSurveyInProgress = isSurveyInProgress
-var clearInProgressSurveyState = function (survey) {
+    catch (e) {
+        logger.error('Error getting in-progress survey state from localStorage', e);
+    }
+    return null;
+};
+export const isSurveyInProgress = (survey) => {
+    const state = getInProgressSurveyState(survey);
+    return !isNullish(state === null || state === void 0 ? void 0 : state.surveySubmissionId);
+};
+export const clearInProgressSurveyState = (survey) => {
     try {
-        localStorage.removeItem(getInProgressSurveyStateKey(survey))
-    } catch (e) {
-        survey_utils_1.SURVEY_LOGGER.error('Error clearing in-progress survey state from localStorage', e)
+        localStorage.removeItem(getInProgressSurveyStateKey(survey));
     }
-}
-exports.clearInProgressSurveyState = clearInProgressSurveyState
-function getSurveyContainerClass(survey, asSelector) {
-    if (asSelector === void 0) {
-        asSelector = false
+    catch (e) {
+        logger.error('Error clearing in-progress survey state from localStorage', e);
     }
-    var className = 'PostHogSurvey-'.concat(survey.id)
-    return asSelector ? '.'.concat(className) : className
+};
+export function getSurveyContainerClass(survey, asSelector = false) {
+    const className = `PostHogSurvey-${survey.id}`;
+    return asSelector ? `.${className}` : className;
 }
-//# sourceMappingURL=surveys-extension-utils.js.map

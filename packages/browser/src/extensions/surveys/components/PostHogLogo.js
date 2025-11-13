@@ -1,15 +1,5 @@
-'use strict'
-Object.defineProperty(exports, '__esModule', { value: true })
-exports.PostHogLogo = PostHogLogo
-var jsx_runtime_1 = require('react/jsx-runtime')
-var icons_1 = require('../icons')
-function PostHogLogo() {
-    return (0, jsx_runtime_1.jsxs)('a', {
-        href: 'https://posthog.com/surveys',
-        target: '_blank',
-        rel: 'noopener',
-        className: 'footer-branding',
-        children: ['Survey by ', icons_1.IconPosthogLogo],
-    })
+import { jsxs as _jsxs } from "react/jsx-runtime";
+import { IconPosthogLogo } from '../icons';
+export function PostHogLogo() {
+    return (_jsxs("a", { href: "https://posthog.com/surveys", target: "_blank", rel: "noopener", className: "footer-branding", children: ["Survey by ", IconPosthogLogo] }));
 }
-//# sourceMappingURL=PostHogLogo.js.map

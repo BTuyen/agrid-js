@@ -10,7 +10,14 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "strict": true
+    "strict": true,
+    "baseUrl": "src",
+    "paths": {
+      "@/*": ["./*"],
+      "@/entrypoints/*": ["./entrypoints/*"],
+      "@/extensions/*": ["./extensions/*"],
+      "@agrid/core": ["../core/src"]
+    }
   },
   "references": [{ "path": "../core" }],
   "include": ["src/**/*"],

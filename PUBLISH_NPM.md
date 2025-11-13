@@ -159,7 +159,7 @@ npm version major  # 1.5.2 -> 2.0.0
 ### 8.2. Hoặc chỉnh sửa thủ công trong package.json
 ```json
 {
-  "version": "1.5.3"
+  "version": "1.5.4"
 }
 ```
 

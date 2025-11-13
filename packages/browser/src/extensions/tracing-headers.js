@@ -1,40 +1,36 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.TracingHeaders = void 0;
-var globals_1 = require("../utils/globals");
-var logger_1 = require("../utils/logger");
-var core_1 = require("@agrid/core");
-var logger = (0, logger_1.createLogger)('[TracingHeaders]');
-var TracingHeaders = /** @class */ (function () {
-    function TracingHeaders(_instance) {
-        var _this = this;
+import { assignableWindow } from '../utils/globals';
+import { createLogger } from '../utils/logger';
+import { isUndefined } from '@agrid/core';
+const logger = createLogger('[TracingHeaders]');
+export class TracingHeaders {
+    constructor(_instance) {
         this._instance = _instance;
         this._restoreXHRPatch = undefined;
         this._restoreFetchPatch = undefined;
-        this._startCapturing = function () {
+        this._startCapturing = () => {
             var _a, _b, _c, _d;
-            if ((0, core_1.isUndefined)(_this._restoreXHRPatch)) {
-                (_b = (_a = globals_1.assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.tracingHeadersPatchFns) === null || _b === void 0 ? void 0 : _b._patchXHR(_this._instance.config.__add_tracing_headers || [], _this._instance.get_distinct_id(), _this._instance.sessionManager);
+            if (isUndefined(this._restoreXHRPatch)) {
+                (_b = (_a = assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.tracingHeadersPatchFns) === null || _b === void 0 ? void 0 : _b._patchXHR(this._instance.config.__add_tracing_headers || [], this._instance.get_distinct_id(), this._instance.sessionManager);
             }
-            if ((0, core_1.isUndefined)(_this._restoreFetchPatch)) {
-                (_d = (_c = globals_1.assignableWindow.__PosthogExtensions__) === null || _c === void 0 ? void 0 : _c.tracingHeadersPatchFns) === null || _d === void 0 ? void 0 : _d._patchFetch(_this._instance.config.__add_tracing_headers || [], _this._instance.get_distinct_id(), _this._instance.sessionManager);
+            if (isUndefined(this._restoreFetchPatch)) {
+                (_d = (_c = assignableWindow.__PosthogExtensions__) === null || _c === void 0 ? void 0 : _c.tracingHeadersPatchFns) === null || _d === void 0 ? void 0 : _d._patchFetch(this._instance.config.__add_tracing_headers || [], this._instance.get_distinct_id(), this._instance.sessionManager);
             }
         };
     }
-    TracingHeaders.prototype._loadScript = function (cb) {
+    _loadScript(cb) {
         var _a, _b, _c;
-        if ((_a = globals_1.assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.tracingHeadersPatchFns) {
+        if ((_a = assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.tracingHeadersPatchFns) {
             // already loaded
             cb();
         }
-        (_c = (_b = globals_1.assignableWindow.__PosthogExtensions__) === null || _b === void 0 ? void 0 : _b.loadExternalDependency) === null || _c === void 0 ? void 0 : _c.call(_b, this._instance, 'tracing-headers', function (err) {
+        (_c = (_b = assignableWindow.__PosthogExtensions__) === null || _b === void 0 ? void 0 : _b.loadExternalDependency) === null || _c === void 0 ? void 0 : _c.call(_b, this._instance, 'tracing-headers', (err) => {
             if (err) {
                 return logger.error('failed to load script', err);
             }
             cb();
         });
-    };
-    TracingHeaders.prototype.startIfEnabledOrStop = function () {
+    }
+    startIfEnabledOrStop() {
         var _a, _b;
         if (this._instance.config.__add_tracing_headers) {
             this._loadScript(this._startCapturing);
@@ -46,8 +42,5 @@ var TracingHeaders = /** @class */ (function () {
             this._restoreXHRPatch = undefined;
             this._restoreFetchPatch = undefined;
         }
-    };
-    return TracingHeaders;
-}());
-exports.TracingHeaders = TracingHeaders;
-//# sourceMappingURL=tracing-headers.js.map
+    }
+}

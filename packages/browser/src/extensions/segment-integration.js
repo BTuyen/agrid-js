@@ -1,16 +1,13 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.setupSegmentIntegration = setupSegmentIntegration;
-var logger_1 = require("../utils/logger");
-var constants_1 = require("../constants");
-var core_1 = require("@agrid/core");
-var uuidv7_1 = require("../uuidv7");
-var logger = (0, logger_1.createLogger)('[SegmentIntegration]');
-var createSegmentIntegration = function (posthog) {
+import { createLogger } from '../utils/logger';
+import { USER_STATE } from '../constants';
+import { isFunction } from '@agrid/core';
+import { uuidv7 } from '../uuidv7';
+const logger = createLogger('[SegmentIntegration]');
+const createSegmentIntegration = (posthog) => {
     if (!Promise || !Promise.resolve) {
         logger.warn('This browser does not have Promise support, and can not use the segment integration');
     }
-    var enrichEvent = function (ctx, eventName) {
+    const enrichEvent = (ctx, eventName) => {
         if (!eventName) {
             return ctx;
         }
@@ -23,7 +20,7 @@ var createSegmentIntegration = function (posthog) {
             logger.info('UserId set, identifying with PostHog');
             posthog.identify(ctx.event.userId);
         }
-        var additionalProperties = posthog.calculateEventProperties(eventName, ctx.event.properties);
+        const additionalProperties = posthog.calculateEventProperties(eventName, ctx.event.properties);
         ctx.event.properties = Object.assign({}, additionalProperties, ctx.event.properties);
         return ctx;
     };
@@ -31,24 +28,24 @@ var createSegmentIntegration = function (posthog) {
         name: 'PostHog JS',
         type: 'enrichment',
         version: '1.0.0',
-        isLoaded: function () { return true; },
+        isLoaded: () => true,
         // check and early return above
         // eslint-disable-next-line compat/compat
-        load: function () { return Promise.resolve(); },
-        track: function (ctx) { return enrichEvent(ctx, ctx.event.event); },
-        page: function (ctx) { return enrichEvent(ctx, '$pageview'); },
-        identify: function (ctx) { return enrichEvent(ctx, '$identify'); },
-        screen: function (ctx) { return enrichEvent(ctx, '$screen'); },
+        load: () => Promise.resolve(),
+        track: (ctx) => enrichEvent(ctx, ctx.event.event),
+        page: (ctx) => enrichEvent(ctx, '$pageview'),
+        identify: (ctx) => enrichEvent(ctx, '$identify'),
+        screen: (ctx) => enrichEvent(ctx, '$screen'),
     };
 };
 function setupPostHogFromSegment(posthog, done) {
-    var segment = posthog.config.segment;
+    const segment = posthog.config.segment;
     if (!segment) {
         return done();
     }
-    var bootstrapUser = function (user) {
+    const bootstrapUser = (user) => {
         // Use segments anonymousId instead
-        var getSegmentAnonymousId = function () { return user.anonymousId() || (0, uuidv7_1.uuidv7)(); };
+        const getSegmentAnonymousId = () => user.anonymousId() || uuidv7();
         posthog.config.get_device_id = getSegmentAnonymousId;
         // If a segment user ID exists, set it as the distinct_id
         if (user.id()) {
@@ -56,28 +53,27 @@ function setupPostHogFromSegment(posthog, done) {
                 distinct_id: user.id(),
                 $device_id: getSegmentAnonymousId(),
             });
-            posthog.persistence.set_property(constants_1.USER_STATE, 'identified');
+            posthog.persistence.set_property(USER_STATE, 'identified');
         }
         done();
     };
-    var segmentUser = segment.user();
+    const segmentUser = segment.user();
     // If segmentUser is a promise then we need to wait for it to resolve
-    if ('then' in segmentUser && (0, core_1.isFunction)(segmentUser.then)) {
-        segmentUser.then(function (user) { return bootstrapUser(user); });
+    if ('then' in segmentUser && isFunction(segmentUser.then)) {
+        segmentUser.then((user) => bootstrapUser(user));
     }
     else {
         bootstrapUser(segmentUser);
     }
 }
-function setupSegmentIntegration(posthog, done) {
-    var segment = posthog.config.segment;
+export function setupSegmentIntegration(posthog, done) {
+    const segment = posthog.config.segment;
     if (!segment) {
         return done();
     }
-    setupPostHogFromSegment(posthog, function () {
-        segment.register(createSegmentIntegration(posthog)).then(function () {
+    setupPostHogFromSegment(posthog, () => {
+        segment.register(createSegmentIntegration(posthog)).then(() => {
             done();
         });
     });
 }
-//# sourceMappingURL=segment-integration.js.map

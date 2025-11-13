@@ -1,16 +1,12 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.utf8Encode = void 0;
-exports._base64Encode = _base64Encode;
-var core_1 = require("@agrid/core");
-function _base64Encode(data) {
-    var b64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-    var o1, o2, o3, h1, h2, h3, h4, bits, i = 0, ac = 0, enc = '';
-    var tmp_arr = [];
+import { isNull } from '@agrid/core';
+export function _base64Encode(data) {
+    const b64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    let o1, o2, o3, h1, h2, h3, h4, bits, i = 0, ac = 0, enc = '';
+    const tmp_arr = [];
     if (!data) {
         return data;
     }
-    data = (0, exports.utf8Encode)(data);
+    data = utf8Encode(data);
     do {
         // pack three octets into four hexets
         o1 = data.charCodeAt(i++);
@@ -35,15 +31,15 @@ function _base64Encode(data) {
     }
     return enc;
 }
-var utf8Encode = function (string) {
+export const utf8Encode = function (string) {
     string = (string + '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    var utftext = '', start, end;
-    var stringl = 0, n;
+    let utftext = '', start, end;
+    let stringl = 0, n;
     start = end = 0;
     stringl = string.length;
     for (n = 0; n < stringl; n++) {
-        var c1 = string.charCodeAt(n);
-        var enc = null;
+        const c1 = string.charCodeAt(n);
+        let enc = null;
         if (c1 < 128) {
             end++;
         }
@@ -53,7 +49,7 @@ var utf8Encode = function (string) {
         else {
             enc = String.fromCharCode((c1 >> 12) | 224, ((c1 >> 6) & 63) | 128, (c1 & 63) | 128);
         }
-        if (!(0, core_1.isNull)(enc)) {
+        if (!isNull(enc)) {
             if (end > start) {
                 utftext += string.substring(start, end);
             }
@@ -66,5 +62,3 @@ var utf8Encode = function (string) {
     }
     return utftext;
 };
-exports.utf8Encode = utf8Encode;
-//# sourceMappingURL=encode-utils.js.map

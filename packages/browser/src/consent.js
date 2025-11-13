@@ -1,42 +1,31 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConsentManager = exports.ConsentStatus = void 0;
-var utils_1 = require("./utils");
-var globals_1 = require("./utils/globals");
-var storage_1 = require("./storage");
-var core_1 = require("@agrid/core");
-var OPT_OUT_PREFIX = '__ph_opt_in_out_';
-var ConsentStatus;
+import { find } from './utils';
+import { assignableWindow, navigator } from './utils/globals';
+import { cookieStore, localStore } from './storage';
+import { isNoLike, isYesLike } from '@agrid/core';
+const OPT_OUT_PREFIX = '__ph_opt_in_out_';
+export var ConsentStatus;
 (function (ConsentStatus) {
     ConsentStatus[ConsentStatus["PENDING"] = -1] = "PENDING";
     ConsentStatus[ConsentStatus["DENIED"] = 0] = "DENIED";
     ConsentStatus[ConsentStatus["GRANTED"] = 1] = "GRANTED";
-})(ConsentStatus || (exports.ConsentStatus = ConsentStatus = {}));
+})(ConsentStatus || (ConsentStatus = {}));
 /**
  * ConsentManager provides tools for managing user consent as configured by the application.
  */
-var ConsentManager = /** @class */ (function () {
-    function ConsentManager(_instance) {
+export class ConsentManager {
+    constructor(_instance) {
         this._instance = _instance;
     }
-    Object.defineProperty(ConsentManager.prototype, "_config", {
-        get: function () {
-            return this._instance.config;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(ConsentManager.prototype, "consent", {
-        get: function () {
-            if (this._getDnt()) {
-                return ConsentStatus.DENIED;
-            }
-            return this._storedConsent;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    ConsentManager.prototype.isOptedOut = function () {
+    get _config() {
+        return this._instance.config;
+    }
+    get consent() {
+        if (this._getDnt()) {
+            return ConsentStatus.DENIED;
+        }
+        return this._storedConsent;
+    }
+    isOptedOut() {
         if (this._config.cookieless_mode === 'always') {
             return true;
         }
@@ -47,80 +36,65 @@ var ConsentManager = /** @class */ (function () {
         return (this.consent === ConsentStatus.DENIED ||
             (this.consent === ConsentStatus.PENDING &&
                 (this._config.opt_out_capturing_by_default || this._config.cookieless_mode === 'on_reject')));
-    };
-    ConsentManager.prototype.isOptedIn = function () {
+    }
+    isOptedIn() {
         return !this.isOptedOut();
-    };
-    ConsentManager.prototype.isExplicitlyOptedOut = function () {
+    }
+    isExplicitlyOptedOut() {
         return this.consent === ConsentStatus.DENIED;
-    };
-    ConsentManager.prototype.optInOut = function (isOptedIn) {
+    }
+    optInOut(isOptedIn) {
         this._storage._set(this._storageKey, isOptedIn ? 1 : 0, this._config.cookie_expiration, this._config.cross_subdomain_cookie, this._config.secure_cookie);
-    };
-    ConsentManager.prototype.reset = function () {
+    }
+    reset() {
         this._storage._remove(this._storageKey, this._config.cross_subdomain_cookie);
-    };
-    Object.defineProperty(ConsentManager.prototype, "_storageKey", {
-        get: function () {
-            var _a = this._instance.config, token = _a.token, opt_out_capturing_cookie_prefix = _a.opt_out_capturing_cookie_prefix, consent_persistence_name = _a.consent_persistence_name;
-            if (consent_persistence_name) {
-                return consent_persistence_name;
-            }
-            else if (opt_out_capturing_cookie_prefix) {
-                // Deprecated, but we still support it for backwards compatibility.
-                // This was deprecated because it differed in behaviour from storage.ts, and appends the token.
-                // This meant it was not possible to share the same consent state across multiple PostHog instances,
-                // and made it harder for people to migrate from other systems.
-                return opt_out_capturing_cookie_prefix + token;
-            }
-            else {
-                return OPT_OUT_PREFIX + token;
-            }
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(ConsentManager.prototype, "_storedConsent", {
-        get: function () {
-            var value = this._storage._get(this._storageKey);
-            // be somewhat permissive in what we accept as yes/opt-in, to make it easier for people to migrate from other systems
-            return (0, core_1.isYesLike)(value) ? ConsentStatus.GRANTED : (0, core_1.isNoLike)(value) ? ConsentStatus.DENIED : ConsentStatus.PENDING;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(ConsentManager.prototype, "_storage", {
-        get: function () {
-            if (!this._persistentStore) {
-                var persistenceType = this._config.opt_out_capturing_persistence_type;
-                this._persistentStore = persistenceType === 'localStorage' ? storage_1.localStore : storage_1.cookieStore;
-                var otherStorage = persistenceType === 'localStorage' ? storage_1.cookieStore : storage_1.localStore;
-                if (otherStorage._get(this._storageKey)) {
-                    if (!this._persistentStore._get(this._storageKey)) {
-                        // This indicates we have moved to a new storage format so we migrate the value over
-                        this.optInOut((0, core_1.isYesLike)(otherStorage._get(this._storageKey)));
-                    }
-                    otherStorage._remove(this._storageKey, this._config.cross_subdomain_cookie);
+    }
+    get _storageKey() {
+        const { token, opt_out_capturing_cookie_prefix, consent_persistence_name } = this._instance.config;
+        if (consent_persistence_name) {
+            return consent_persistence_name;
+        }
+        else if (opt_out_capturing_cookie_prefix) {
+            // Deprecated, but we still support it for backwards compatibility.
+            // This was deprecated because it differed in behaviour from storage.ts, and appends the token.
+            // This meant it was not possible to share the same consent state across multiple PostHog instances,
+            // and made it harder for people to migrate from other systems.
+            return opt_out_capturing_cookie_prefix + token;
+        }
+        else {
+            return OPT_OUT_PREFIX + token;
+        }
+    }
+    get _storedConsent() {
+        const value = this._storage._get(this._storageKey);
+        // be somewhat permissive in what we accept as yes/opt-in, to make it easier for people to migrate from other systems
+        return isYesLike(value) ? ConsentStatus.GRANTED : isNoLike(value) ? ConsentStatus.DENIED : ConsentStatus.PENDING;
+    }
+    get _storage() {
+        if (!this._persistentStore) {
+            const persistenceType = this._config.opt_out_capturing_persistence_type;
+            this._persistentStore = persistenceType === 'localStorage' ? localStore : cookieStore;
+            const otherStorage = persistenceType === 'localStorage' ? cookieStore : localStore;
+            if (otherStorage._get(this._storageKey)) {
+                if (!this._persistentStore._get(this._storageKey)) {
+                    // This indicates we have moved to a new storage format so we migrate the value over
+                    this.optInOut(isYesLike(otherStorage._get(this._storageKey)));
                 }
+                otherStorage._remove(this._storageKey, this._config.cross_subdomain_cookie);
             }
-            return this._persistentStore;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    ConsentManager.prototype._getDnt = function () {
+        }
+        return this._persistentStore;
+    }
+    _getDnt() {
         if (!this._config.respect_dnt) {
             return false;
         }
-        return !!(0, utils_1.find)([
-            globals_1.navigator === null || globals_1.navigator === void 0 ? void 0 : globals_1.navigator.doNotTrack, // standard
-            globals_1.navigator === null || globals_1.navigator === void 0 ? void 0 : globals_1.navigator['msDoNotTrack'],
-            globals_1.assignableWindow['doNotTrack'],
-        ], function (dntValue) {
-            return (0, core_1.isYesLike)(dntValue);
+        return !!find([
+            navigator === null || navigator === void 0 ? void 0 : navigator.doNotTrack, // standard
+            navigator === null || navigator === void 0 ? void 0 : navigator['msDoNotTrack'],
+            assignableWindow['doNotTrack'],
+        ], (dntValue) => {
+            return isYesLike(dntValue);
         });
-    };
-    return ConsentManager;
-}());
-exports.ConsentManager = ConsentManager;
-//# sourceMappingURL=consent.js.map
+    }
+}

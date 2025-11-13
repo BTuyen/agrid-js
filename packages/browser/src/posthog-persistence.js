@@ -1,34 +1,20 @@
-"use strict";
 /* eslint camelcase: "off" */
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PostHogPersistence = void 0;
-var utils_1 = require("./utils");
-var storage_1 = require("./storage");
-var constants_1 = require("./constants");
-var core_1 = require("@agrid/core");
-var event_utils_1 = require("./utils/event-utils");
-var logger_1 = require("./utils/logger");
-var core_2 = require("@agrid/core");
-var CASE_INSENSITIVE_PERSISTENCE_TYPES = [
+import { each, extend, include, stripEmptyProperties } from './utils';
+import { cookieStore, localPlusCookieStore, localStore, memoryStore, sessionStore } from './storage';
+import { ENABLED_FEATURE_FLAGS, EVENT_TIMERS_KEY, INITIAL_CAMPAIGN_PARAMS, INITIAL_PERSON_INFO, INITIAL_REFERRER_INFO, PERSISTENCE_RESERVED_PROPERTIES, } from './constants';
+import { isUndefined } from '@agrid/core';
+import { getCampaignParams, getInitialPersonPropsFromInfo, getPersonInfo, getReferrerInfo, getSearchInfo, } from './utils/event-utils';
+import { logger } from './utils/logger';
+import { stripLeadingDollar, isEmptyObject, isObject } from '@agrid/core';
+const CASE_INSENSITIVE_PERSISTENCE_TYPES = [
     'cookie',
     'localstorage',
     'localstorage+cookie',
     'sessionstorage',
     'memory',
 ];
-var parseName = function (config) {
-    var token = '';
+const parseName = (config) => {
+    let token = '';
     if (config['token']) {
         token = config['token'].replace(/\+/g, 'PL').replace(/\//g, 'SL').replace(/=/g, 'EQ');
     }
@@ -43,12 +29,12 @@ var parseName = function (config) {
  * PostHog Persistence Object
  * @constructor
  */
-var PostHogPersistence = /** @class */ (function () {
+export class PostHogPersistence {
     /**
      * @param {PostHogConfig} config initial PostHog configuration
      * @param {boolean=} isDisabled should persistence be disabled (e.g. because of consent management)
      */
-    function PostHogPersistence(config, isDisabled) {
+    constructor(config, isDisabled) {
         this._config = config;
         this.props = {};
         this._campaign_params_saved = false;
@@ -56,7 +42,7 @@ var PostHogPersistence = /** @class */ (function () {
         this._storage = this._buildStorage(config);
         this.load();
         if (config.debug) {
-            logger_1.logger.info('Persistence loaded', config['persistence'], __assign({}, this.props));
+            logger.info('Persistence loaded', config['persistence'], { ...this.props });
         }
         this.update_config(config, config, isDisabled);
         this.save();
@@ -65,216 +51,212 @@ var PostHogPersistence = /** @class */ (function () {
      * Returns whether persistence is disabled. Only available in SDKs > 1.257.1. Do not use on extensions, otherwise
      * it'll break backwards compatibility for any version before 1.257.1.
      */
-    PostHogPersistence.prototype.isDisabled = function () {
+    isDisabled() {
         return !!this._disabled;
-    };
-    PostHogPersistence.prototype._buildStorage = function (config) {
+    }
+    _buildStorage(config) {
         if (CASE_INSENSITIVE_PERSISTENCE_TYPES.indexOf(config['persistence'].toLowerCase()) === -1) {
-            logger_1.logger.critical('Unknown persistence type ' + config['persistence'] + '; falling back to localStorage+cookie');
+            logger.critical('Unknown persistence type ' + config['persistence'] + '; falling back to localStorage+cookie');
             config['persistence'] = 'localStorage+cookie';
         }
-        var store;
+        let store;
         // We handle storage type in a case-insensitive way for backwards compatibility
-        var storage_type = config['persistence'].toLowerCase();
-        if (storage_type === 'localstorage' && storage_1.localStore._is_supported()) {
-            store = storage_1.localStore;
+        const storage_type = config['persistence'].toLowerCase();
+        if (storage_type === 'localstorage' && localStore._is_supported()) {
+            store = localStore;
         }
-        else if (storage_type === 'localstorage+cookie' && storage_1.localPlusCookieStore._is_supported()) {
-            store = storage_1.localPlusCookieStore;
+        else if (storage_type === 'localstorage+cookie' && localPlusCookieStore._is_supported()) {
+            store = localPlusCookieStore;
         }
-        else if (storage_type === 'sessionstorage' && storage_1.sessionStore._is_supported()) {
-            store = storage_1.sessionStore;
+        else if (storage_type === 'sessionstorage' && sessionStore._is_supported()) {
+            store = sessionStore;
         }
         else if (storage_type === 'memory') {
-            store = storage_1.memoryStore;
+            store = memoryStore;
         }
         else if (storage_type === 'cookie') {
-            store = storage_1.cookieStore;
+            store = cookieStore;
         }
-        else if (storage_1.localPlusCookieStore._is_supported()) {
+        else if (localPlusCookieStore._is_supported()) {
             // selected storage type wasn't supported, fallback to 'localstorage+cookie' if possible
-            store = storage_1.localPlusCookieStore;
+            store = localPlusCookieStore;
         }
         else {
-            store = storage_1.cookieStore;
+            store = cookieStore;
         }
         return store;
-    };
-    PostHogPersistence.prototype.properties = function () {
-        var p = {};
+    }
+    properties() {
+        const p = {};
         // Filter out reserved properties
-        (0, utils_1.each)(this.props, function (v, k) {
-            if (k === constants_1.ENABLED_FEATURE_FLAGS && (0, core_2.isObject)(v)) {
-                var keys = Object.keys(v);
-                for (var i = 0; i < keys.length; i++) {
-                    p["$feature/".concat(keys[i])] = v[keys[i]];
+        each(this.props, function (v, k) {
+            if (k === ENABLED_FEATURE_FLAGS && isObject(v)) {
+                const keys = Object.keys(v);
+                for (let i = 0; i < keys.length; i++) {
+                    p[`$feature/${keys[i]}`] = v[keys[i]];
                 }
             }
-            else if (!(0, utils_1.include)(constants_1.PERSISTENCE_RESERVED_PROPERTIES, k)) {
+            else if (!include(PERSISTENCE_RESERVED_PROPERTIES, k)) {
                 p[k] = v;
             }
         });
         return p;
-    };
-    PostHogPersistence.prototype.load = function () {
+    }
+    load() {
         if (this._disabled) {
             return;
         }
-        var entry = this._storage._parse(this._name);
+        const entry = this._storage._parse(this._name);
         if (entry) {
-            this.props = (0, utils_1.extend)({}, entry);
+            this.props = extend({}, entry);
         }
-    };
+    }
     /**
      * NOTE: Saving frequently causes issues with Recordings and Consent Management Platform (CMP) tools which
      * observe cookie changes, and modify their UI, often causing infinite loops.
      * As such callers of this should ideally check that the data has changed beforehand
      */
-    PostHogPersistence.prototype.save = function () {
+    save() {
         if (this._disabled) {
             return;
         }
         this._storage._set(this._name, this.props, this._expire_days, this._cross_subdomain, this._secure, this._config.debug);
-    };
-    PostHogPersistence.prototype.remove = function () {
+    }
+    remove() {
         // remove both domain and subdomain cookies
         this._storage._remove(this._name, false);
         this._storage._remove(this._name, true);
-    };
+    }
     // removes the storage entry and deletes all loaded data
     // forced name for tests
-    PostHogPersistence.prototype.clear = function () {
+    clear() {
         this.remove();
         this.props = {};
-    };
+    }
     /**
      * @param {Object} props
      * @param {*=} default_value
      * @param {number=} days
      */
-    PostHogPersistence.prototype.register_once = function (props, default_value, days) {
-        var _this = this;
-        if ((0, core_2.isObject)(props)) {
-            if ((0, core_1.isUndefined)(default_value)) {
+    register_once(props, default_value, days) {
+        if (isObject(props)) {
+            if (isUndefined(default_value)) {
                 default_value = 'None';
             }
-            this._expire_days = (0, core_1.isUndefined)(days) ? this._default_expiry : days;
-            var hasChanges_1 = false;
-            (0, utils_1.each)(props, function (val, prop) {
-                if (!_this.props.hasOwnProperty(prop) || _this.props[prop] === default_value) {
-                    _this.props[prop] = val;
-                    hasChanges_1 = true;
+            this._expire_days = isUndefined(days) ? this._default_expiry : days;
+            let hasChanges = false;
+            each(props, (val, prop) => {
+                if (!this.props.hasOwnProperty(prop) || this.props[prop] === default_value) {
+                    this.props[prop] = val;
+                    hasChanges = true;
                 }
             });
-            if (hasChanges_1) {
+            if (hasChanges) {
                 this.save();
                 return true;
             }
         }
         return false;
-    };
+    }
     /**
      * @param {Object} props
      * @param {number=} days
      */
-    PostHogPersistence.prototype.register = function (props, days) {
-        var _this = this;
-        if ((0, core_2.isObject)(props)) {
-            this._expire_days = (0, core_1.isUndefined)(days) ? this._default_expiry : days;
-            var hasChanges_2 = false;
-            (0, utils_1.each)(props, function (val, prop) {
-                if (props.hasOwnProperty(prop) && _this.props[prop] !== val) {
-                    _this.props[prop] = val;
-                    hasChanges_2 = true;
+    register(props, days) {
+        if (isObject(props)) {
+            this._expire_days = isUndefined(days) ? this._default_expiry : days;
+            let hasChanges = false;
+            each(props, (val, prop) => {
+                if (props.hasOwnProperty(prop) && this.props[prop] !== val) {
+                    this.props[prop] = val;
+                    hasChanges = true;
                 }
             });
-            if (hasChanges_2) {
+            if (hasChanges) {
                 this.save();
                 return true;
             }
         }
         return false;
-    };
-    PostHogPersistence.prototype.unregister = function (prop) {
+    }
+    unregister(prop) {
         if (prop in this.props) {
             delete this.props[prop];
             this.save();
         }
-    };
-    PostHogPersistence.prototype.update_campaign_params = function () {
+    }
+    update_campaign_params() {
         if (!this._campaign_params_saved) {
-            var campaignParams = (0, event_utils_1.getCampaignParams)(this._config.custom_campaign_params, this._config.mask_personal_data_properties, this._config.custom_personal_data_properties);
+            const campaignParams = getCampaignParams(this._config.custom_campaign_params, this._config.mask_personal_data_properties, this._config.custom_personal_data_properties);
             // only save campaign params if there were any
-            if (!(0, core_2.isEmptyObject)((0, utils_1.stripEmptyProperties)(campaignParams))) {
+            if (!isEmptyObject(stripEmptyProperties(campaignParams))) {
                 this.register(campaignParams);
             }
             this._campaign_params_saved = true;
         }
-    };
-    PostHogPersistence.prototype.update_search_keyword = function () {
-        this.register((0, event_utils_1.getSearchInfo)());
-    };
-    PostHogPersistence.prototype.update_referrer_info = function () {
-        this.register_once((0, event_utils_1.getReferrerInfo)(), undefined);
-    };
-    PostHogPersistence.prototype.set_initial_person_info = function () {
-        var _a;
-        if (this.props[constants_1.INITIAL_CAMPAIGN_PARAMS] || this.props[constants_1.INITIAL_REFERRER_INFO]) {
+    }
+    update_search_keyword() {
+        this.register(getSearchInfo());
+    }
+    update_referrer_info() {
+        this.register_once(getReferrerInfo(), undefined);
+    }
+    set_initial_person_info() {
+        if (this.props[INITIAL_CAMPAIGN_PARAMS] || this.props[INITIAL_REFERRER_INFO]) {
             // the user has initial properties stored the previous way, don't save them again
             return;
         }
-        this.register_once((_a = {},
-            _a[constants_1.INITIAL_PERSON_INFO] = (0, event_utils_1.getPersonInfo)(this._config.mask_personal_data_properties, this._config.custom_personal_data_properties),
-            _a), undefined);
-    };
-    PostHogPersistence.prototype.get_initial_props = function () {
-        var _this = this;
-        var p = {};
+        this.register_once({
+            [INITIAL_PERSON_INFO]: getPersonInfo(this._config.mask_personal_data_properties, this._config.custom_personal_data_properties),
+        }, undefined);
+    }
+    get_initial_props() {
+        const p = {};
         // this section isn't written to anymore, but we should keep reading from it for backwards compatibility
         // for a while
-        (0, utils_1.each)([constants_1.INITIAL_REFERRER_INFO, constants_1.INITIAL_CAMPAIGN_PARAMS], function (key) {
-            var initialReferrerInfo = _this.props[key];
+        each([INITIAL_REFERRER_INFO, INITIAL_CAMPAIGN_PARAMS], (key) => {
+            const initialReferrerInfo = this.props[key];
             if (initialReferrerInfo) {
-                (0, utils_1.each)(initialReferrerInfo, function (v, k) {
-                    p['$initial_' + (0, core_2.stripLeadingDollar)(k)] = v;
+                each(initialReferrerInfo, function (v, k) {
+                    p['$initial_' + stripLeadingDollar(k)] = v;
                 });
             }
         });
-        var initialPersonInfo = this.props[constants_1.INITIAL_PERSON_INFO];
+        const initialPersonInfo = this.props[INITIAL_PERSON_INFO];
         if (initialPersonInfo) {
-            var initialPersonProps = (0, event_utils_1.getInitialPersonPropsFromInfo)(initialPersonInfo);
-            (0, utils_1.extend)(p, initialPersonProps);
+            const initialPersonProps = getInitialPersonPropsFromInfo(initialPersonInfo);
+            extend(p, initialPersonProps);
         }
         return p;
-    };
+    }
     // safely fills the passed in object with stored properties,
     // does not override any properties defined in both
     // returns the passed in object
-    PostHogPersistence.prototype.safe_merge = function (props) {
-        (0, utils_1.each)(this.props, function (val, prop) {
+    safe_merge(props) {
+        each(this.props, function (val, prop) {
             if (!(prop in props)) {
                 props[prop] = val;
             }
         });
         return props;
-    };
-    PostHogPersistence.prototype.update_config = function (config, oldConfig, isDisabled) {
+    }
+    update_config(config, oldConfig, isDisabled) {
         this._default_expiry = this._expire_days = config['cookie_expiration'];
         this.set_disabled(config['disable_persistence'] || !!isDisabled);
         this.set_cross_subdomain(config['cross_subdomain_cookie']);
         this.set_secure(config['secure_cookie']);
         if (config.persistence !== oldConfig.persistence) {
             // If the persistence type has changed, we need to migrate the data.
-            var newStore = this._buildStorage(config);
-            var props = this.props;
+            const newStore = this._buildStorage(config);
+            const props = this.props;
             // clear the old store
             this.clear();
             this._storage = newStore;
             this.props = props;
             this.save();
         }
-    };
-    PostHogPersistence.prototype.set_disabled = function (disabled) {
+    }
+    set_disabled(disabled) {
         this._disabled = disabled;
         if (this._disabled) {
             this.remove();
@@ -282,44 +264,41 @@ var PostHogPersistence = /** @class */ (function () {
         else {
             this.save();
         }
-    };
-    PostHogPersistence.prototype.set_cross_subdomain = function (cross_subdomain) {
+    }
+    set_cross_subdomain(cross_subdomain) {
         if (cross_subdomain !== this._cross_subdomain) {
             this._cross_subdomain = cross_subdomain;
             this.remove();
             this.save();
         }
-    };
-    PostHogPersistence.prototype.set_secure = function (secure) {
+    }
+    set_secure(secure) {
         if (secure !== this._secure) {
             this._secure = secure;
             this.remove();
             this.save();
         }
-    };
-    PostHogPersistence.prototype.set_event_timer = function (event_name, timestamp) {
-        var timers = this.props[constants_1.EVENT_TIMERS_KEY] || {};
+    }
+    set_event_timer(event_name, timestamp) {
+        const timers = this.props[EVENT_TIMERS_KEY] || {};
         timers[event_name] = timestamp;
-        this.props[constants_1.EVENT_TIMERS_KEY] = timers;
+        this.props[EVENT_TIMERS_KEY] = timers;
         this.save();
-    };
-    PostHogPersistence.prototype.remove_event_timer = function (event_name) {
-        var timers = this.props[constants_1.EVENT_TIMERS_KEY] || {};
-        var timestamp = timers[event_name];
-        if (!(0, core_1.isUndefined)(timestamp)) {
-            delete this.props[constants_1.EVENT_TIMERS_KEY][event_name];
+    }
+    remove_event_timer(event_name) {
+        const timers = this.props[EVENT_TIMERS_KEY] || {};
+        const timestamp = timers[event_name];
+        if (!isUndefined(timestamp)) {
+            delete this.props[EVENT_TIMERS_KEY][event_name];
             this.save();
         }
         return timestamp;
-    };
-    PostHogPersistence.prototype.get_property = function (prop) {
+    }
+    get_property(prop) {
         return this.props[prop];
-    };
-    PostHogPersistence.prototype.set_property = function (prop, to) {
+    }
+    set_property(prop, to) {
         this.props[prop] = to;
         this.save();
-    };
-    return PostHogPersistence;
-}());
-exports.PostHogPersistence = PostHogPersistence;
-//# sourceMappingURL=posthog-persistence.js.map
+    }
+}

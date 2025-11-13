@@ -1,45 +1,36 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.RemoteConfigLoader = void 0;
-var logger_1 = require("./utils/logger");
-var globals_1 = require("./utils/globals");
-var logger = (0, logger_1.createLogger)('[RemoteConfig]');
-var RemoteConfigLoader = /** @class */ (function () {
-    function RemoteConfigLoader(_instance) {
+import { createLogger } from './utils/logger';
+import { assignableWindow } from './utils/globals';
+const logger = createLogger('[RemoteConfig]');
+export class RemoteConfigLoader {
+    constructor(_instance) {
         this._instance = _instance;
     }
-    Object.defineProperty(RemoteConfigLoader.prototype, "remoteConfig", {
-        get: function () {
-            var _a, _b;
-            return (_b = (_a = globals_1.assignableWindow._POSTHOG_REMOTE_CONFIG) === null || _a === void 0 ? void 0 : _a[this._instance.config.token]) === null || _b === void 0 ? void 0 : _b.config;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    RemoteConfigLoader.prototype._loadRemoteConfigJs = function (cb) {
-        var _this = this;
+    get remoteConfig() {
+        var _a, _b;
+        return (_b = (_a = assignableWindow._POSTHOG_REMOTE_CONFIG) === null || _a === void 0 ? void 0 : _a[this._instance.config.token]) === null || _b === void 0 ? void 0 : _b.config;
+    }
+    _loadRemoteConfigJs(cb) {
         var _a, _b, _c;
-        if ((_a = globals_1.assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.loadExternalDependency) {
-            (_c = (_b = globals_1.assignableWindow.__PosthogExtensions__) === null || _b === void 0 ? void 0 : _b.loadExternalDependency) === null || _c === void 0 ? void 0 : _c.call(_b, this._instance, 'remote-config', function () {
-                return cb(_this.remoteConfig);
+        if ((_a = assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.loadExternalDependency) {
+            (_c = (_b = assignableWindow.__PosthogExtensions__) === null || _b === void 0 ? void 0 : _b.loadExternalDependency) === null || _c === void 0 ? void 0 : _c.call(_b, this._instance, 'remote-config', () => {
+                return cb(this.remoteConfig);
             });
         }
         else {
             logger.error('PostHog Extensions not found. Cannot load remote config.');
             cb();
         }
-    };
-    RemoteConfigLoader.prototype._loadRemoteConfigJSON = function (cb) {
+    }
+    _loadRemoteConfigJSON(cb) {
         this._instance._send_request({
             method: 'GET',
-            url: this._instance.requestRouter.endpointFor('assets', "/array/".concat(this._instance.config.token, "/config")),
-            callback: function (response) {
+            url: this._instance.requestRouter.endpointFor('assets', `/array/${this._instance.config.token}/config`),
+            callback: (response) => {
                 cb(response.json);
             },
         });
-    };
-    RemoteConfigLoader.prototype.load = function () {
-        var _this = this;
+    }
+    load() {
         try {
             // Attempt 1 - use the pre-loaded config if it came as part of the token-specific array.js
             if (this.remoteConfig) {
@@ -53,23 +44,23 @@ var RemoteConfigLoader = /** @class */ (function () {
                 return;
             }
             // Attempt 2 - if we have the external deps loader then lets load the script version of the config that includes site apps
-            this._loadRemoteConfigJs(function (config) {
+            this._loadRemoteConfigJs((config) => {
                 if (!config) {
                     logger.info('No config found after loading remote JS config. Falling back to JSON.');
                     // Attempt 3 Load the config json instead of the script - we won't get site apps etc. but we will get the config
-                    _this._loadRemoteConfigJSON(function (config) {
-                        _this._onRemoteConfig(config);
+                    this._loadRemoteConfigJSON((config) => {
+                        this._onRemoteConfig(config);
                     });
                     return;
                 }
-                _this._onRemoteConfig(config);
+                this._onRemoteConfig(config);
             });
         }
         catch (error) {
             logger.error('Error loading remote config', error);
         }
-    };
-    RemoteConfigLoader.prototype._onRemoteConfig = function (config) {
+    }
+    _onRemoteConfig(config) {
         // NOTE: Once this is rolled out we will remove the /flags related code above. Until then the code duplication is fine.
         if (!config) {
             logger.error('Failed to fetch remote config from PostHog.');
@@ -86,8 +77,5 @@ var RemoteConfigLoader = /** @class */ (function () {
             // This completely separates it from the config logic which is good in terms of separation of concerns
             this._instance.featureFlags.ensureFlagsLoaded();
         }
-    };
-    return RemoteConfigLoader;
-}());
-exports.RemoteConfigLoader = RemoteConfigLoader;
-//# sourceMappingURL=remote-config.js.map
+    }
+}

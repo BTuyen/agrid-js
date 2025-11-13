@@ -1,4 +1,3 @@
-"use strict";
 // Type definitions copied from @rrweb/types@2.0.0-alpha.17 and rrweb-snapshot@2.0.0-alpha.17
 // Both packages are MIT licensed: https://github.com/rrweb-io/rrweb
 //
@@ -8,9 +7,7 @@
 // Original sources:
 // - @rrweb/types: https://github.com/rrweb-io/rrweb/tree/main/packages/@rrweb/types
 // - rrweb-snapshot: https://github.com/rrweb-io/rrweb/tree/main/packages/rrweb-snapshot
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.CanvasContext = exports.MediaInteractions = exports.PointerTypes = exports.MouseInteractions = exports.IncrementalSource = exports.EventType = exports.NodeType = void 0;
-var NodeType;
+export var NodeType;
 (function (NodeType) {
     NodeType[NodeType["Document"] = 0] = "Document";
     NodeType[NodeType["DocumentType"] = 1] = "DocumentType";
@@ -18,8 +15,8 @@ var NodeType;
     NodeType[NodeType["Text"] = 3] = "Text";
     NodeType[NodeType["CDATA"] = 4] = "CDATA";
     NodeType[NodeType["Comment"] = 5] = "Comment";
-})(NodeType || (exports.NodeType = NodeType = {}));
-var EventType;
+})(NodeType || (NodeType = {}));
+export var EventType;
 (function (EventType) {
     EventType[EventType["DomContentLoaded"] = 0] = "DomContentLoaded";
     EventType[EventType["Load"] = 1] = "Load";
@@ -28,8 +25,8 @@ var EventType;
     EventType[EventType["Meta"] = 4] = "Meta";
     EventType[EventType["Custom"] = 5] = "Custom";
     EventType[EventType["Plugin"] = 6] = "Plugin";
-})(EventType || (exports.EventType = EventType = {}));
-var IncrementalSource;
+})(EventType || (EventType = {}));
+export var IncrementalSource;
 (function (IncrementalSource) {
     IncrementalSource[IncrementalSource["Mutation"] = 0] = "Mutation";
     IncrementalSource[IncrementalSource["MouseMove"] = 1] = "MouseMove";
@@ -48,8 +45,8 @@ var IncrementalSource;
     IncrementalSource[IncrementalSource["Selection"] = 14] = "Selection";
     IncrementalSource[IncrementalSource["AdoptedStyleSheet"] = 15] = "AdoptedStyleSheet";
     IncrementalSource[IncrementalSource["CustomElement"] = 16] = "CustomElement";
-})(IncrementalSource || (exports.IncrementalSource = IncrementalSource = {}));
-var MouseInteractions;
+})(IncrementalSource || (IncrementalSource = {}));
+export var MouseInteractions;
 (function (MouseInteractions) {
     MouseInteractions[MouseInteractions["MouseUp"] = 0] = "MouseUp";
     MouseInteractions[MouseInteractions["MouseDown"] = 1] = "MouseDown";
@@ -62,25 +59,24 @@ var MouseInteractions;
     MouseInteractions[MouseInteractions["TouchMove_Departed"] = 8] = "TouchMove_Departed";
     MouseInteractions[MouseInteractions["TouchEnd"] = 9] = "TouchEnd";
     MouseInteractions[MouseInteractions["TouchCancel"] = 10] = "TouchCancel";
-})(MouseInteractions || (exports.MouseInteractions = MouseInteractions = {}));
-var PointerTypes;
+})(MouseInteractions || (MouseInteractions = {}));
+export var PointerTypes;
 (function (PointerTypes) {
     PointerTypes[PointerTypes["Mouse"] = 0] = "Mouse";
     PointerTypes[PointerTypes["Pen"] = 1] = "Pen";
     PointerTypes[PointerTypes["Touch"] = 2] = "Touch";
-})(PointerTypes || (exports.PointerTypes = PointerTypes = {}));
-var MediaInteractions;
+})(PointerTypes || (PointerTypes = {}));
+export var MediaInteractions;
 (function (MediaInteractions) {
     MediaInteractions[MediaInteractions["Play"] = 0] = "Play";
     MediaInteractions[MediaInteractions["Pause"] = 1] = "Pause";
     MediaInteractions[MediaInteractions["Seeked"] = 2] = "Seeked";
     MediaInteractions[MediaInteractions["VolumeChange"] = 3] = "VolumeChange";
     MediaInteractions[MediaInteractions["RateChange"] = 4] = "RateChange";
-})(MediaInteractions || (exports.MediaInteractions = MediaInteractions = {}));
-var CanvasContext;
+})(MediaInteractions || (MediaInteractions = {}));
+export var CanvasContext;
 (function (CanvasContext) {
     CanvasContext[CanvasContext["2D"] = 0] = "2D";
     CanvasContext[CanvasContext["WebGL"] = 1] = "WebGL";
     CanvasContext[CanvasContext["WebGL2"] = 2] = "WebGL2";
-})(CanvasContext || (exports.CanvasContext = CanvasContext = {}));
-//# sourceMappingURL=rrweb-types.js.map
+})(CanvasContext || (CanvasContext = {}));

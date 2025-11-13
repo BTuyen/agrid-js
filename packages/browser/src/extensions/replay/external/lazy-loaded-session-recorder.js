@@ -1,108 +1,54 @@
-"use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __read = (this && this.__read) || function (o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-};
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.LazyLoadedSessionRecording = exports.SEVEN_MEGABYTES = exports.SESSION_RECORDING_BATCH_KEY = exports.RECORDING_BUFFER_TIMEOUT = exports.RECORDING_MAX_EVENT_SIZE = exports.RECORDING_IDLE_THRESHOLD_MS = void 0;
-exports.splitBuffer = splitBuffer;
-var rrweb_types_1 = require("../types/rrweb-types");
-var config_1 = require("./config");
-var triggerMatching_1 = require("./triggerMatching");
-var sessionrecording_utils_1 = require("./sessionrecording-utils");
-var fflate_1 = require("fflate");
-var globals_1 = require("../../../utils/globals");
-var utils_1 = require("../../../utils");
-var mutation_throttler_1 = require("./mutation-throttler");
-var logger_1 = require("../../../utils/logger");
-var core_1 = require("@agrid/core");
-var constants_1 = require("../../../constants");
-var request_utils_1 = require("../../../utils/request-utils");
-var config_2 = __importDefault(require("../../../config"));
-var sampling_1 = require("../../sampling");
-var flushed_size_tracker_1 = require("./flushed-size-tracker");
-var BASE_ENDPOINT = '/s/';
-var DEFAULT_CANVAS_QUALITY = 0.4;
-var DEFAULT_CANVAS_FPS = 4;
-var MAX_CANVAS_FPS = 12;
-var MAX_CANVAS_QUALITY = 1;
-var TWO_SECONDS = 2000;
-var ONE_KB = 1024;
-var ONE_MINUTE = 1000 * 60;
-var FIVE_MINUTES = ONE_MINUTE * 5;
-exports.RECORDING_IDLE_THRESHOLD_MS = FIVE_MINUTES;
-exports.RECORDING_MAX_EVENT_SIZE = ONE_KB * ONE_KB * 0.9; // ~1mb (with some wiggle room)
-exports.RECORDING_BUFFER_TIMEOUT = 2000; // 2 seconds
-exports.SESSION_RECORDING_BATCH_KEY = 'recordings';
-var LOGGER_PREFIX = '[SessionRecording]';
-var logger = (0, logger_1.createLogger)(LOGGER_PREFIX);
-var ACTIVE_SOURCES = [
-    rrweb_types_1.IncrementalSource.MouseMove,
-    rrweb_types_1.IncrementalSource.MouseInteraction,
-    rrweb_types_1.IncrementalSource.Scroll,
-    rrweb_types_1.IncrementalSource.ViewportResize,
-    rrweb_types_1.IncrementalSource.Input,
-    rrweb_types_1.IncrementalSource.TouchMove,
-    rrweb_types_1.IncrementalSource.MediaInteraction,
-    rrweb_types_1.IncrementalSource.Drag,
+import { EventType, IncrementalSource, } from '../types/rrweb-types';
+import { buildNetworkRequestOptions } from './config';
+import { ACTIVE, allMatchSessionRecordingStatus, AndTriggerMatching, anyMatchSessionRecordingStatus, BUFFERING, DISABLED, EventTriggerMatching, LinkedFlagMatching, nullMatchSessionRecordingStatus, OrTriggerMatching, PAUSED, PendingTriggerMatching, SAMPLED, TRIGGER_PENDING, URLTriggerMatching, } from './triggerMatching';
+import { estimateSize, INCREMENTAL_SNAPSHOT_EVENT_TYPE, truncateLargeConsoleLogs } from './sessionrecording-utils';
+import { gzipSync, strFromU8, strToU8 } from 'fflate';
+import { assignableWindow, window, document } from '../../../utils/globals';
+import { addEventListener } from '../../../utils';
+import { MutationThrottler } from './mutation-throttler';
+import { createLogger } from '../../../utils/logger';
+import { clampToRange, includes, isBoolean, isFunction, isNullish, isNumber, isObject, isString, isUndefined, } from '@agrid/core';
+import { SESSION_RECORDING_EVENT_TRIGGER_ACTIVATED_SESSION, SESSION_RECORDING_IS_SAMPLED, SESSION_RECORDING_OVERRIDE_SAMPLING, SESSION_RECORDING_OVERRIDE_LINKED_FLAG, SESSION_RECORDING_OVERRIDE_EVENT_TRIGGER, SESSION_RECORDING_OVERRIDE_URL_TRIGGER, SESSION_RECORDING_REMOTE_CONFIG, SESSION_RECORDING_URL_TRIGGER_ACTIVATED_SESSION, } from '../../../constants';
+import { isLocalhost } from '../../../utils/request-utils';
+import Config from '../../../config';
+import { sampleOnProperty } from '../../sampling';
+import { FlushedSizeTracker } from './flushed-size-tracker';
+const BASE_ENDPOINT = '/s/';
+const DEFAULT_CANVAS_QUALITY = 0.4;
+const DEFAULT_CANVAS_FPS = 4;
+const MAX_CANVAS_FPS = 12;
+const MAX_CANVAS_QUALITY = 1;
+const TWO_SECONDS = 2000;
+const ONE_KB = 1024;
+const ONE_MINUTE = 1000 * 60;
+const FIVE_MINUTES = ONE_MINUTE * 5;
+export const RECORDING_IDLE_THRESHOLD_MS = FIVE_MINUTES;
+export const RECORDING_MAX_EVENT_SIZE = ONE_KB * ONE_KB * 0.9; // ~1mb (with some wiggle room)
+export const RECORDING_BUFFER_TIMEOUT = 2000; // 2 seconds
+export const SESSION_RECORDING_BATCH_KEY = 'recordings';
+const LOGGER_PREFIX = '[SessionRecording]';
+const logger = createLogger(LOGGER_PREFIX);
+const ACTIVE_SOURCES = [
+    IncrementalSource.MouseMove,
+    IncrementalSource.MouseInteraction,
+    IncrementalSource.Scroll,
+    IncrementalSource.ViewportResize,
+    IncrementalSource.Input,
+    IncrementalSource.TouchMove,
+    IncrementalSource.MediaInteraction,
+    IncrementalSource.Drag,
 ];
-var newQueuedEvent = function (rrwebMethod) { return ({
-    rrwebMethod: rrwebMethod,
+const newQueuedEvent = (rrwebMethod) => ({
+    rrwebMethod,
     enqueuedAt: Date.now(),
     attempt: 1,
-}); };
+});
 function getRRWebRecord() {
     var _a, _b;
-    return (_b = (_a = globals_1.assignableWindow === null || globals_1.assignableWindow === void 0 ? void 0 : globals_1.assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.rrweb) === null || _b === void 0 ? void 0 : _b.record;
+    return (_b = (_a = assignableWindow === null || assignableWindow === void 0 ? void 0 : assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.rrweb) === null || _b === void 0 ? void 0 : _b.record;
 }
 function gzipToString(data) {
-    return (0, fflate_1.strFromU8)((0, fflate_1.gzipSync)((0, fflate_1.strToU8)(JSON.stringify(data))), true);
+    return strFromU8(gzipSync(strToU8(JSON.stringify(data))), true);
 }
 /**
  * rrweb's packer takes an event and returns a string or the reverse on `unpack`.
@@ -112,14 +58,36 @@ function gzipToString(data) {
  */
 function compressEvent(event) {
     try {
-        if (event.type === rrweb_types_1.EventType.FullSnapshot) {
-            return __assign(__assign({}, event), { data: gzipToString(event.data), cv: '2024-10' });
+        if (event.type === EventType.FullSnapshot) {
+            return {
+                ...event,
+                data: gzipToString(event.data),
+                cv: '2024-10',
+            };
         }
-        if (event.type === rrweb_types_1.EventType.IncrementalSnapshot && event.data.source === rrweb_types_1.IncrementalSource.Mutation) {
-            return __assign(__assign({}, event), { cv: '2024-10', data: __assign(__assign({}, event.data), { texts: gzipToString(event.data.texts), attributes: gzipToString(event.data.attributes), removes: gzipToString(event.data.removes), adds: gzipToString(event.data.adds) }) });
+        if (event.type === EventType.IncrementalSnapshot && event.data.source === IncrementalSource.Mutation) {
+            return {
+                ...event,
+                cv: '2024-10',
+                data: {
+                    ...event.data,
+                    texts: gzipToString(event.data.texts),
+                    attributes: gzipToString(event.data.attributes),
+                    removes: gzipToString(event.data.removes),
+                    adds: gzipToString(event.data.adds),
+                },
+            };
         }
-        if (event.type === rrweb_types_1.EventType.IncrementalSnapshot && event.data.source === rrweb_types_1.IncrementalSource.StyleSheetRule) {
-            return __assign(__assign({}, event), { cv: '2024-10', data: __assign(__assign({}, event.data), { adds: event.data.adds ? gzipToString(event.data.adds) : undefined, removes: event.data.removes ? gzipToString(event.data.removes) : undefined }) });
+        if (event.type === EventType.IncrementalSnapshot && event.data.source === IncrementalSource.StyleSheetRule) {
+            return {
+                ...event,
+                cv: '2024-10',
+                data: {
+                    ...event.data,
+                    adds: event.data.adds ? gzipToString(event.data.adds) : undefined,
+                    removes: event.data.removes ? gzipToString(event.data.removes) : undefined,
+                },
+            };
         }
     }
     catch (e) {
@@ -128,7 +96,7 @@ function compressEvent(event) {
     return event;
 }
 function isCustomEvent(e, tag) {
-    return e.type === rrweb_types_1.EventType.Custom && e.data.tag === tag;
+    return e.type === EventType.Custom && e.data.tag === tag;
 }
 function isSessionIdleEvent(e) {
     return isCustomEvent(e, 'sessionIdle');
@@ -146,39 +114,65 @@ function isAllowedWhenIdle(e) {
  *  However, in the paused state, events are dropped and never make it to the buffer,
  *  so we need to manually let this one through */
 function isRecordingPausedEvent(e) {
-    return e.type === rrweb_types_1.EventType.Custom && e.data.tag === 'recording paused';
+    return e.type === EventType.Custom && e.data.tag === 'recording paused';
 }
-exports.SEVEN_MEGABYTES = 1024 * 1024 * 7 * 0.9; // ~7mb (with some wiggle room)
+export const SEVEN_MEGABYTES = 1024 * 1024 * 7 * 0.9; // ~7mb (with some wiggle room)
 // recursively splits large buffers into smaller ones
 // uses a pretty high size limit to avoid splitting too much
-function splitBuffer(buffer, sizeLimit) {
-    if (sizeLimit === void 0) { sizeLimit = exports.SEVEN_MEGABYTES; }
+export function splitBuffer(buffer, sizeLimit = SEVEN_MEGABYTES) {
     if (buffer.size >= sizeLimit && buffer.data.length > 1) {
-        var half = Math.floor(buffer.data.length / 2);
-        var firstHalf = buffer.data.slice(0, half);
-        var secondHalf = buffer.data.slice(half);
+        const half = Math.floor(buffer.data.length / 2);
+        const firstHalf = buffer.data.slice(0, half);
+        const secondHalf = buffer.data.slice(half);
         return [
             splitBuffer({
-                size: (0, sessionrecording_utils_1.estimateSize)(firstHalf),
+                size: estimateSize(firstHalf),
                 data: firstHalf,
                 sessionId: buffer.sessionId,
                 windowId: buffer.windowId,
             }),
             splitBuffer({
-                size: (0, sessionrecording_utils_1.estimateSize)(secondHalf),
+                size: estimateSize(secondHalf),
                 data: secondHalf,
                 sessionId: buffer.sessionId,
                 windowId: buffer.windowId,
             }),
-        ].flatMap(function (x) { return x; });
+        ].flatMap((x) => x);
     }
     else {
         return [buffer];
     }
 }
-var LazyLoadedSessionRecording = /** @class */ (function () {
-    function LazyLoadedSessionRecording(_instance) {
-        var _this = this;
+export class LazyLoadedSessionRecording {
+    get sessionId() {
+        return this._sessionId;
+    }
+    get _sessionManager() {
+        if (!this._instance.sessionManager) {
+            throw new Error(LOGGER_PREFIX + ' must be started with a valid sessionManager.');
+        }
+        return this._instance.sessionManager;
+    }
+    get _sessionIdleThresholdMilliseconds() {
+        return this._instance.config.session_recording.session_idle_threshold_ms || RECORDING_IDLE_THRESHOLD_MS;
+    }
+    get _isSampled() {
+        const currentValue = this._instance.get_property(SESSION_RECORDING_IS_SAMPLED);
+        // originally we would store `true` or `false` or nothing,
+        // but that would mean sometimes we would carry on recording on session id change
+        return isBoolean(currentValue) ? currentValue : isString(currentValue) ? currentValue === this.sessionId : null;
+    }
+    get _sampleRate() {
+        var _a;
+        const rate = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.sampleRate;
+        return isNumber(rate) ? rate : null;
+    }
+    get _minimumDuration() {
+        var _a;
+        const duration = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.minimumDurationMilliseconds;
+        return isNumber(duration) ? duration : null;
+    }
+    constructor(_instance) {
         this._instance = _instance;
         this._endpoint = BASE_ENDPOINT;
         /**
@@ -194,240 +188,172 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
         this._isIdle = 'unknown';
         // we need to be able to check the state of the event and url triggers separately
         // as we make some decisions based on them without referencing LinkedFlag etc
-        this._triggerMatching = new triggerMatching_1.PendingTriggerMatching();
+        this._triggerMatching = new PendingTriggerMatching();
         this._removePageViewCaptureHook = undefined;
         this._removeEventTriggerCaptureHook = undefined;
-        this._statusMatcher = triggerMatching_1.nullMatchSessionRecordingStatus;
+        this._statusMatcher = nullMatchSessionRecordingStatus;
         this._onSessionIdListener = undefined;
         this._onSessionIdleResetForcedListener = undefined;
         this._samplingSessionListener = undefined;
         this._forceIdleSessionIdListener = undefined;
-        this._onSessionIdCallback = function (sessionId, windowId, changeReason) {
+        this._onSessionIdCallback = (sessionId, windowId, changeReason) => {
             var _a;
             if (!changeReason)
                 return;
-            var wasLikelyReset = changeReason.noSessionId;
-            var shouldLinkSessions = !wasLikelyReset && (changeReason.activityTimeout || changeReason.sessionPastMaximumLength);
-            var oldSessionId, oldWindowId;
+            const wasLikelyReset = changeReason.noSessionId;
+            const shouldLinkSessions = !wasLikelyReset && (changeReason.activityTimeout || changeReason.sessionPastMaximumLength);
+            let oldSessionId, oldWindowId;
             if (shouldLinkSessions) {
-                oldSessionId = _this._sessionId;
-                oldWindowId = _this._windowId;
-                _this._tryAddCustomEvent('$session_ending', {
+                oldSessionId = this._sessionId;
+                oldWindowId = this._windowId;
+                this._tryAddCustomEvent('$session_ending', {
                     nextSessionId: sessionId,
                     nextWindowId: windowId,
-                    changeReason: changeReason,
+                    changeReason,
                     // we'll need to correct the time of this if it's captured when idle
                     // so we don't extend reported session time with a debug event
-                    lastActivityTimestamp: _this._lastActivityTimestamp,
-                    flushed_size: (_a = _this._flushedSizeTracker) === null || _a === void 0 ? void 0 : _a.currentTrackedSize,
+                    lastActivityTimestamp: this._lastActivityTimestamp,
+                    flushed_size: (_a = this._flushedSizeTracker) === null || _a === void 0 ? void 0 : _a.currentTrackedSize,
                 });
             }
             // reset flushed size tracker after capturing the ending event
-            if (_this._flushedSizeTracker) {
-                _this._flushedSizeTracker.reset();
+            if (this._flushedSizeTracker) {
+                this._flushedSizeTracker.reset();
             }
-            _this._tryAddCustomEvent('$session_id_change', { sessionId: sessionId, windowId: windowId, changeReason: changeReason });
-            _this._clearConditionalRecordingPersistence();
-            if (!_this._stopRrweb) {
-                _this.start('session_id_changed');
+            this._tryAddCustomEvent('$session_id_change', { sessionId, windowId, changeReason });
+            this._clearConditionalRecordingPersistence();
+            if (!this._stopRrweb) {
+                this.start('session_id_changed');
             }
             if (shouldLinkSessions) {
-                _this._tryAddCustomEvent('$session_starting', {
+                this._tryAddCustomEvent('$session_starting', {
                     previousSessionId: oldSessionId,
                     previousWindowId: oldWindowId,
-                    changeReason: changeReason,
+                    changeReason,
                     // we'll need to correct the time of this if it's captured when idle
                     // so we don't extend reported session time with a debug event
-                    lastActivityTimestamp: _this._lastActivityTimestamp,
+                    lastActivityTimestamp: this._lastActivityTimestamp,
                 });
             }
-            if ((0, core_1.isNumber)(_this._sampleRate) && (0, core_1.isNullish)(_this._samplingSessionListener)) {
-                _this._makeSamplingDecision(sessionId);
+            if (isNumber(this._sampleRate) && isNullish(this._samplingSessionListener)) {
+                this._makeSamplingDecision(sessionId);
             }
         };
-        this._onBeforeUnload = function () {
-            _this._flushBuffer();
+        this._onBeforeUnload = () => {
+            this._flushBuffer();
         };
-        this._onOffline = function () {
-            _this._tryAddCustomEvent('browser offline', {});
+        this._onOffline = () => {
+            this._tryAddCustomEvent('browser offline', {});
         };
-        this._onOnline = function () {
-            _this._tryAddCustomEvent('browser online', {});
+        this._onOnline = () => {
+            this._tryAddCustomEvent('browser online', {});
         };
-        this._onVisibilityChange = function () {
-            if (globals_1.document === null || globals_1.document === void 0 ? void 0 : globals_1.document.visibilityState) {
-                var label = 'window ' + globals_1.document.visibilityState;
-                _this._tryAddCustomEvent(label, {});
+        this._onVisibilityChange = () => {
+            if (document === null || document === void 0 ? void 0 : document.visibilityState) {
+                const label = 'window ' + document.visibilityState;
+                this._tryAddCustomEvent(label, {});
             }
         };
         // we know there's a sessionManager, so don't need to start without a session id
-        var _a = this._sessionManager.checkAndGetSessionAndWindowId(), sessionId = _a.sessionId, windowId = _a.windowId;
+        const { sessionId, windowId } = this._sessionManager.checkAndGetSessionAndWindowId();
         this._sessionId = sessionId;
         this._windowId = windowId;
-        this._linkedFlagMatching = new triggerMatching_1.LinkedFlagMatching(this._instance);
-        this._urlTriggerMatching = new triggerMatching_1.URLTriggerMatching(this._instance);
-        this._eventTriggerMatching = new triggerMatching_1.EventTriggerMatching(this._instance);
+        this._linkedFlagMatching = new LinkedFlagMatching(this._instance);
+        this._urlTriggerMatching = new URLTriggerMatching(this._instance);
+        this._eventTriggerMatching = new EventTriggerMatching(this._instance);
         this._buffer = this._clearBuffer();
         if (this._sessionIdleThresholdMilliseconds >= this._sessionManager.sessionTimeoutMs) {
-            logger.warn("session_idle_threshold_ms (".concat(this._sessionIdleThresholdMilliseconds, ") is greater than the session timeout (").concat(this._sessionManager.sessionTimeoutMs, "). Session will never be detected as idle"));
+            logger.warn(`session_idle_threshold_ms (${this._sessionIdleThresholdMilliseconds}) is greater than the session timeout (${this._sessionManager.sessionTimeoutMs}). Session will never be detected as idle`);
         }
-        this._flushedSizeTracker = new flushed_size_tracker_1.FlushedSizeTracker(this._instance);
+        this._flushedSizeTracker = new FlushedSizeTracker(this._instance);
     }
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "sessionId", {
-        get: function () {
-            return this._sessionId;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_sessionManager", {
-        get: function () {
-            if (!this._instance.sessionManager) {
-                throw new Error(LOGGER_PREFIX + ' must be started with a valid sessionManager.');
+    get _masking() {
+        var _a, _b, _c, _d, _e, _f, _g;
+        const masking_server_side = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.masking;
+        const masking_client_side = {
+            maskAllInputs: (_b = this._instance.config.session_recording) === null || _b === void 0 ? void 0 : _b.maskAllInputs,
+            maskTextSelector: (_c = this._instance.config.session_recording) === null || _c === void 0 ? void 0 : _c.maskTextSelector,
+            blockSelector: (_d = this._instance.config.session_recording) === null || _d === void 0 ? void 0 : _d.blockSelector,
+        };
+        const maskAllInputs = (_e = masking_client_side === null || masking_client_side === void 0 ? void 0 : masking_client_side.maskAllInputs) !== null && _e !== void 0 ? _e : masking_server_side === null || masking_server_side === void 0 ? void 0 : masking_server_side.maskAllInputs;
+        const maskTextSelector = (_f = masking_client_side === null || masking_client_side === void 0 ? void 0 : masking_client_side.maskTextSelector) !== null && _f !== void 0 ? _f : masking_server_side === null || masking_server_side === void 0 ? void 0 : masking_server_side.maskTextSelector;
+        const blockSelector = (_g = masking_client_side === null || masking_client_side === void 0 ? void 0 : masking_client_side.blockSelector) !== null && _g !== void 0 ? _g : masking_server_side === null || masking_server_side === void 0 ? void 0 : masking_server_side.blockSelector;
+        return !isUndefined(maskAllInputs) || !isUndefined(maskTextSelector) || !isUndefined(blockSelector)
+            ? {
+                maskAllInputs: maskAllInputs !== null && maskAllInputs !== void 0 ? maskAllInputs : true,
+                maskTextSelector,
+                blockSelector,
             }
-            return this._instance.sessionManager;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_sessionIdleThresholdMilliseconds", {
-        get: function () {
-            return this._instance.config.session_recording.session_idle_threshold_ms || exports.RECORDING_IDLE_THRESHOLD_MS;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_isSampled", {
-        get: function () {
-            var currentValue = this._instance.get_property(constants_1.SESSION_RECORDING_IS_SAMPLED);
-            // originally we would store `true` or `false` or nothing,
-            // but that would mean sometimes we would carry on recording on session id change
-            return (0, core_1.isBoolean)(currentValue) ? currentValue : (0, core_1.isString)(currentValue) ? currentValue === this.sessionId : null;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_sampleRate", {
-        get: function () {
-            var _a;
-            var rate = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.sampleRate;
-            return (0, core_1.isNumber)(rate) ? rate : null;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_minimumDuration", {
-        get: function () {
-            var _a;
-            var duration = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.minimumDurationMilliseconds;
-            return (0, core_1.isNumber)(duration) ? duration : null;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_masking", {
-        get: function () {
-            var _a, _b, _c, _d, _e, _f, _g;
-            var masking_server_side = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.masking;
-            var masking_client_side = {
-                maskAllInputs: (_b = this._instance.config.session_recording) === null || _b === void 0 ? void 0 : _b.maskAllInputs,
-                maskTextSelector: (_c = this._instance.config.session_recording) === null || _c === void 0 ? void 0 : _c.maskTextSelector,
-                blockSelector: (_d = this._instance.config.session_recording) === null || _d === void 0 ? void 0 : _d.blockSelector,
-            };
-            var maskAllInputs = (_e = masking_client_side === null || masking_client_side === void 0 ? void 0 : masking_client_side.maskAllInputs) !== null && _e !== void 0 ? _e : masking_server_side === null || masking_server_side === void 0 ? void 0 : masking_server_side.maskAllInputs;
-            var maskTextSelector = (_f = masking_client_side === null || masking_client_side === void 0 ? void 0 : masking_client_side.maskTextSelector) !== null && _f !== void 0 ? _f : masking_server_side === null || masking_server_side === void 0 ? void 0 : masking_server_side.maskTextSelector;
-            var blockSelector = (_g = masking_client_side === null || masking_client_side === void 0 ? void 0 : masking_client_side.blockSelector) !== null && _g !== void 0 ? _g : masking_server_side === null || masking_server_side === void 0 ? void 0 : masking_server_side.blockSelector;
-            return !(0, core_1.isUndefined)(maskAllInputs) || !(0, core_1.isUndefined)(maskTextSelector) || !(0, core_1.isUndefined)(blockSelector)
-                ? {
-                    maskAllInputs: maskAllInputs !== null && maskAllInputs !== void 0 ? maskAllInputs : true,
-                    maskTextSelector: maskTextSelector,
-                    blockSelector: blockSelector,
-                }
-                : undefined;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_canvasRecording", {
-        get: function () {
-            var _a, _b, _c, _d, _e, _f, _g;
-            var canvasRecording_client_side = this._instance.config.session_recording.captureCanvas;
-            var canvasRecording_server_side = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.canvasRecording;
-            var enabled = (_c = (_b = canvasRecording_client_side === null || canvasRecording_client_side === void 0 ? void 0 : canvasRecording_client_side.recordCanvas) !== null && _b !== void 0 ? _b : canvasRecording_server_side === null || canvasRecording_server_side === void 0 ? void 0 : canvasRecording_server_side.enabled) !== null && _c !== void 0 ? _c : false;
-            var fps = (_e = (_d = canvasRecording_client_side === null || canvasRecording_client_side === void 0 ? void 0 : canvasRecording_client_side.canvasFps) !== null && _d !== void 0 ? _d : canvasRecording_server_side === null || canvasRecording_server_side === void 0 ? void 0 : canvasRecording_server_side.fps) !== null && _e !== void 0 ? _e : DEFAULT_CANVAS_FPS;
-            var quality = (_g = (_f = canvasRecording_client_side === null || canvasRecording_client_side === void 0 ? void 0 : canvasRecording_client_side.canvasQuality) !== null && _f !== void 0 ? _f : canvasRecording_server_side === null || canvasRecording_server_side === void 0 ? void 0 : canvasRecording_server_side.quality) !== null && _g !== void 0 ? _g : DEFAULT_CANVAS_QUALITY;
-            if (typeof quality === 'string') {
-                var parsed = parseFloat(quality);
-                quality = isNaN(parsed) ? 0.4 : parsed;
-            }
-            return {
-                enabled: enabled,
-                fps: (0, core_1.clampToRange)(fps, 0, MAX_CANVAS_FPS, (0, logger_1.createLogger)('canvas recording fps'), DEFAULT_CANVAS_FPS),
-                quality: (0, core_1.clampToRange)(quality, 0, MAX_CANVAS_QUALITY, (0, logger_1.createLogger)('canvas recording quality'), DEFAULT_CANVAS_QUALITY),
-            };
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_isConsoleLogCaptureEnabled", {
-        get: function () {
-            var _a;
-            var enabled_server_side = !!((_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.consoleLogRecordingEnabled);
-            var enabled_client_side = this._instance.config.enable_recording_console_log;
-            return enabled_client_side !== null && enabled_client_side !== void 0 ? enabled_client_side : enabled_server_side;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_networkPayloadCapture", {
-        // network payload capture config has three parts
-        // each can be configured server side or client side
-        get: function () {
-            var _a, _b, _c;
-            var networkPayloadCapture_server_side = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.networkPayloadCapture;
-            var networkPayloadCapture_client_side = {
-                recordHeaders: (_b = this._instance.config.session_recording) === null || _b === void 0 ? void 0 : _b.recordHeaders,
-                recordBody: (_c = this._instance.config.session_recording) === null || _c === void 0 ? void 0 : _c.recordBody,
-            };
-            var headersEnabled = (networkPayloadCapture_client_side === null || networkPayloadCapture_client_side === void 0 ? void 0 : networkPayloadCapture_client_side.recordHeaders) || (networkPayloadCapture_server_side === null || networkPayloadCapture_server_side === void 0 ? void 0 : networkPayloadCapture_server_side.recordHeaders);
-            var bodyEnabled = (networkPayloadCapture_client_side === null || networkPayloadCapture_client_side === void 0 ? void 0 : networkPayloadCapture_client_side.recordBody) || (networkPayloadCapture_server_side === null || networkPayloadCapture_server_side === void 0 ? void 0 : networkPayloadCapture_server_side.recordBody);
-            var clientConfigForPerformanceCapture = (0, core_1.isObject)(this._instance.config.capture_performance)
-                ? this._instance.config.capture_performance.network_timing
-                : this._instance.config.capture_performance;
-            var networkTimingEnabled = !!((0, core_1.isBoolean)(clientConfigForPerformanceCapture)
-                ? clientConfigForPerformanceCapture
-                : networkPayloadCapture_server_side === null || networkPayloadCapture_server_side === void 0 ? void 0 : networkPayloadCapture_server_side.capturePerformance);
-            return headersEnabled || bodyEnabled || networkTimingEnabled
-                ? { recordHeaders: headersEnabled, recordBody: bodyEnabled, recordPerformance: networkTimingEnabled }
-                : undefined;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    LazyLoadedSessionRecording.prototype._gatherRRWebPlugins = function () {
+            : undefined;
+    }
+    get _canvasRecording() {
+        var _a, _b, _c, _d, _e, _f, _g;
+        const canvasRecording_client_side = this._instance.config.session_recording.captureCanvas;
+        const canvasRecording_server_side = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.canvasRecording;
+        const enabled = (_c = (_b = canvasRecording_client_side === null || canvasRecording_client_side === void 0 ? void 0 : canvasRecording_client_side.recordCanvas) !== null && _b !== void 0 ? _b : canvasRecording_server_side === null || canvasRecording_server_side === void 0 ? void 0 : canvasRecording_server_side.enabled) !== null && _c !== void 0 ? _c : false;
+        const fps = (_e = (_d = canvasRecording_client_side === null || canvasRecording_client_side === void 0 ? void 0 : canvasRecording_client_side.canvasFps) !== null && _d !== void 0 ? _d : canvasRecording_server_side === null || canvasRecording_server_side === void 0 ? void 0 : canvasRecording_server_side.fps) !== null && _e !== void 0 ? _e : DEFAULT_CANVAS_FPS;
+        let quality = (_g = (_f = canvasRecording_client_side === null || canvasRecording_client_side === void 0 ? void 0 : canvasRecording_client_side.canvasQuality) !== null && _f !== void 0 ? _f : canvasRecording_server_side === null || canvasRecording_server_side === void 0 ? void 0 : canvasRecording_server_side.quality) !== null && _g !== void 0 ? _g : DEFAULT_CANVAS_QUALITY;
+        if (typeof quality === 'string') {
+            const parsed = parseFloat(quality);
+            quality = isNaN(parsed) ? 0.4 : parsed;
+        }
+        return {
+            enabled,
+            fps: clampToRange(fps, 0, MAX_CANVAS_FPS, createLogger('canvas recording fps'), DEFAULT_CANVAS_FPS),
+            quality: clampToRange(quality, 0, MAX_CANVAS_QUALITY, createLogger('canvas recording quality'), DEFAULT_CANVAS_QUALITY),
+        };
+    }
+    get _isConsoleLogCaptureEnabled() {
+        var _a;
+        const enabled_server_side = !!((_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.consoleLogRecordingEnabled);
+        const enabled_client_side = this._instance.config.enable_recording_console_log;
+        return enabled_client_side !== null && enabled_client_side !== void 0 ? enabled_client_side : enabled_server_side;
+    }
+    // network payload capture config has three parts
+    // each can be configured server side or client side
+    get _networkPayloadCapture() {
+        var _a, _b, _c;
+        const networkPayloadCapture_server_side = (_a = this._remoteConfig) === null || _a === void 0 ? void 0 : _a.networkPayloadCapture;
+        const networkPayloadCapture_client_side = {
+            recordHeaders: (_b = this._instance.config.session_recording) === null || _b === void 0 ? void 0 : _b.recordHeaders,
+            recordBody: (_c = this._instance.config.session_recording) === null || _c === void 0 ? void 0 : _c.recordBody,
+        };
+        const headersEnabled = (networkPayloadCapture_client_side === null || networkPayloadCapture_client_side === void 0 ? void 0 : networkPayloadCapture_client_side.recordHeaders) || (networkPayloadCapture_server_side === null || networkPayloadCapture_server_side === void 0 ? void 0 : networkPayloadCapture_server_side.recordHeaders);
+        const bodyEnabled = (networkPayloadCapture_client_side === null || networkPayloadCapture_client_side === void 0 ? void 0 : networkPayloadCapture_client_side.recordBody) || (networkPayloadCapture_server_side === null || networkPayloadCapture_server_side === void 0 ? void 0 : networkPayloadCapture_server_side.recordBody);
+        const clientConfigForPerformanceCapture = isObject(this._instance.config.capture_performance)
+            ? this._instance.config.capture_performance.network_timing
+            : this._instance.config.capture_performance;
+        const networkTimingEnabled = !!(isBoolean(clientConfigForPerformanceCapture)
+            ? clientConfigForPerformanceCapture
+            : networkPayloadCapture_server_side === null || networkPayloadCapture_server_side === void 0 ? void 0 : networkPayloadCapture_server_side.capturePerformance);
+        return headersEnabled || bodyEnabled || networkTimingEnabled
+            ? { recordHeaders: headersEnabled, recordBody: bodyEnabled, recordPerformance: networkTimingEnabled }
+            : undefined;
+    }
+    _gatherRRWebPlugins() {
         var _a, _b, _c, _d;
-        var plugins = [];
-        var recordConsolePlugin = (_b = (_a = globals_1.assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.rrwebPlugins) === null || _b === void 0 ? void 0 : _b.getRecordConsolePlugin;
+        const plugins = [];
+        const recordConsolePlugin = (_b = (_a = assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.rrwebPlugins) === null || _b === void 0 ? void 0 : _b.getRecordConsolePlugin;
         if (recordConsolePlugin && this._isConsoleLogCaptureEnabled) {
             plugins.push(recordConsolePlugin());
         }
-        var networkPlugin = (_d = (_c = globals_1.assignableWindow.__PosthogExtensions__) === null || _c === void 0 ? void 0 : _c.rrwebPlugins) === null || _d === void 0 ? void 0 : _d.getRecordNetworkPlugin;
-        if (!!this._networkPayloadCapture && (0, core_1.isFunction)(networkPlugin)) {
-            var canRecordNetwork = !(0, request_utils_1.isLocalhost)() || this._forceAllowLocalhostNetworkCapture;
+        const networkPlugin = (_d = (_c = assignableWindow.__PosthogExtensions__) === null || _c === void 0 ? void 0 : _c.rrwebPlugins) === null || _d === void 0 ? void 0 : _d.getRecordNetworkPlugin;
+        if (!!this._networkPayloadCapture && isFunction(networkPlugin)) {
+            const canRecordNetwork = !isLocalhost() || this._forceAllowLocalhostNetworkCapture;
             if (canRecordNetwork) {
-                plugins.push(networkPlugin((0, config_1.buildNetworkRequestOptions)(this._instance.config, this._networkPayloadCapture)));
+                plugins.push(networkPlugin(buildNetworkRequestOptions(this._instance.config, this._networkPayloadCapture)));
             }
             else {
                 logger.info('NetworkCapture not started because we are on localhost.');
             }
         }
         return plugins;
-    };
-    LazyLoadedSessionRecording.prototype._maskUrl = function (url) {
-        var userSessionRecordingOptions = this._instance.config.session_recording;
+    }
+    _maskUrl(url) {
+        const userSessionRecordingOptions = this._instance.config.session_recording;
         if (userSessionRecordingOptions.maskNetworkRequestFn) {
-            var networkRequest = {
-                url: url,
+            let networkRequest = {
+                url,
             };
             // TODO we should deprecate this and use the same function for this masking and the rrweb/network plugin
             // TODO or deprecate this and provide a new clearer name so this would be `maskURLPerformanceFn` or similar
@@ -435,8 +361,8 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             return networkRequest === null || networkRequest === void 0 ? void 0 : networkRequest.url;
         }
         return url;
-    };
-    LazyLoadedSessionRecording.prototype._tryRRWebMethod = function (queuedRRWebEvent) {
+    }
+    _tryRRWebMethod(queuedRRWebEvent) {
         try {
             queuedRRWebEvent.rrwebMethod();
             return true;
@@ -455,33 +381,32 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             }
             return false;
         }
-    };
-    LazyLoadedSessionRecording.prototype._tryAddCustomEvent = function (tag, payload) {
-        return this._tryRRWebMethod(newQueuedEvent(function () { return getRRWebRecord().addCustomEvent(tag, payload); }));
-    };
-    LazyLoadedSessionRecording.prototype._pageViewFallBack = function () {
+    }
+    _tryAddCustomEvent(tag, payload) {
+        return this._tryRRWebMethod(newQueuedEvent(() => getRRWebRecord().addCustomEvent(tag, payload)));
+    }
+    _pageViewFallBack() {
         try {
-            if (this._instance.config.capture_pageview || !globals_1.window) {
+            if (this._instance.config.capture_pageview || !window) {
                 return;
             }
             // Strip hash parameters from URL since they often aren't helpful
             // Use URL constructor for proper parsing to handle edge cases
             // recording doesn't run in IE11, so we don't need compat here
             // eslint-disable-next-line compat/compat
-            var url = new URL(globals_1.window.location.href);
-            var hrefWithoutHash = url.origin + url.pathname + url.search;
-            var currentUrl = this._maskUrl(hrefWithoutHash);
+            const url = new URL(window.location.href);
+            const hrefWithoutHash = url.origin + url.pathname + url.search;
+            const currentUrl = this._maskUrl(hrefWithoutHash);
             if (this._lastHref !== currentUrl) {
                 this._lastHref = currentUrl;
                 this._tryAddCustomEvent('$url_changed', { href: currentUrl });
             }
         }
-        catch (_a) {
+        catch {
             // If URL processing fails, don't capture anything
         }
-    };
-    LazyLoadedSessionRecording.prototype._processQueuedEvents = function () {
-        var _this = this;
+    }
+    _processQueuedEvents() {
         if (this._queuedRRWebEvents.length) {
             // if rrweb isn't ready to accept events earlier, then we queued them up.
             // now that `emit` has been called rrweb should be ready to accept them.
@@ -493,32 +418,27 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             // so its length is limited elsewhere
             // for now this is to help us ensure we can capture events that happen
             // and try to identify more about when it is failing
-            var itemsToProcess = __spreadArray([], __read(this._queuedRRWebEvents), false);
+            const itemsToProcess = [...this._queuedRRWebEvents];
             this._queuedRRWebEvents = [];
-            itemsToProcess.forEach(function (queuedRRWebEvent) {
+            itemsToProcess.forEach((queuedRRWebEvent) => {
                 if (Date.now() - queuedRRWebEvent.enqueuedAt <= TWO_SECONDS) {
-                    _this._tryRRWebMethod(queuedRRWebEvent);
+                    this._tryRRWebMethod(queuedRRWebEvent);
                 }
             });
         }
-    };
-    LazyLoadedSessionRecording.prototype._tryTakeFullSnapshot = function () {
-        return this._tryRRWebMethod(newQueuedEvent(function () { return getRRWebRecord().takeFullSnapshot(); }));
-    };
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_fullSnapshotIntervalMillis", {
-        get: function () {
-            var _a, _b;
-            if (this._triggerMatching.triggerStatus(this.sessionId) === triggerMatching_1.TRIGGER_PENDING &&
-                !['sampled', 'active'].includes(this.status)) {
-                return ONE_MINUTE;
-            }
-            return (_b = (_a = this._instance.config.session_recording) === null || _a === void 0 ? void 0 : _a.full_snapshot_interval_millis) !== null && _b !== void 0 ? _b : FIVE_MINUTES;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    LazyLoadedSessionRecording.prototype._scheduleFullSnapshot = function () {
-        var _this = this;
+    }
+    _tryTakeFullSnapshot() {
+        return this._tryRRWebMethod(newQueuedEvent(() => getRRWebRecord().takeFullSnapshot()));
+    }
+    get _fullSnapshotIntervalMillis() {
+        var _a, _b;
+        if (this._triggerMatching.triggerStatus(this.sessionId) === TRIGGER_PENDING &&
+            !['sampled', 'active'].includes(this.status)) {
+            return ONE_MINUTE;
+        }
+        return (_b = (_a = this._instance.config.session_recording) === null || _a === void 0 ? void 0 : _a.full_snapshot_interval_millis) !== null && _b !== void 0 ? _b : FIVE_MINUTES;
+    }
+    _scheduleFullSnapshot() {
         if (this._fullSnapshotTimer) {
             clearInterval(this._fullSnapshotTimer);
         }
@@ -526,15 +446,15 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
         if (this._isIdle === true) {
             return;
         }
-        var interval = this._fullSnapshotIntervalMillis;
+        const interval = this._fullSnapshotIntervalMillis;
         if (!interval) {
             return;
         }
-        this._fullSnapshotTimer = setInterval(function () {
-            _this._tryTakeFullSnapshot();
+        this._fullSnapshotTimer = setInterval(() => {
+            this._tryTakeFullSnapshot();
         }, interval);
-    };
-    LazyLoadedSessionRecording.prototype._pauseRecording = function () {
+    }
+    _pauseRecording() {
         // we check _urlBlocked not status, since more than one thing can affect status
         if (this._urlTriggerMatching.urlBlocked) {
             return;
@@ -548,8 +468,8 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
         clearInterval(this._fullSnapshotTimer);
         logger.info('recording paused due to URL blocker');
         this._tryAddCustomEvent('recording paused', { reason: 'url blocker' });
-    };
-    LazyLoadedSessionRecording.prototype._resumeRecording = function () {
+    }
+    _resumeRecording() {
         // we check _urlBlocked not status, since more than one thing can affect status
         if (!this._urlTriggerMatching.urlBlocked) {
             return;
@@ -559,73 +479,63 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
         this._scheduleFullSnapshot();
         this._tryAddCustomEvent('recording resumed', { reason: 'left blocked url' });
         logger.info('recording resumed');
-    };
-    LazyLoadedSessionRecording.prototype._activateTrigger = function (triggerType) {
-        var _a;
-        var _b, _c;
-        if (this._triggerMatching.triggerStatus(this.sessionId) === triggerMatching_1.TRIGGER_PENDING) {
+    }
+    _activateTrigger(triggerType) {
+        var _a, _b;
+        if (this._triggerMatching.triggerStatus(this.sessionId) === TRIGGER_PENDING) {
             // status is stored separately for URL and event triggers
-            (_c = (_b = this._instance) === null || _b === void 0 ? void 0 : _b.persistence) === null || _c === void 0 ? void 0 : _c.register((_a = {},
-                _a[triggerType === 'url'
-                    ? constants_1.SESSION_RECORDING_URL_TRIGGER_ACTIVATED_SESSION
-                    : constants_1.SESSION_RECORDING_EVENT_TRIGGER_ACTIVATED_SESSION] = this._sessionId,
-                _a));
+            (_b = (_a = this._instance) === null || _a === void 0 ? void 0 : _a.persistence) === null || _b === void 0 ? void 0 : _b.register({
+                [triggerType === 'url'
+                    ? SESSION_RECORDING_URL_TRIGGER_ACTIVATED_SESSION
+                    : SESSION_RECORDING_EVENT_TRIGGER_ACTIVATED_SESSION]: this._sessionId,
+            });
             this._flushBuffer();
             this._reportStarted((triggerType + '_trigger_matched'));
         }
-    };
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "isStarted", {
-        get: function () {
-            return !!this._stopRrweb;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_remoteConfig", {
-        get: function () {
-            var persistedConfig = this._instance.get_property(constants_1.SESSION_RECORDING_REMOTE_CONFIG);
-            if (!persistedConfig) {
-                return undefined;
-            }
-            var parsedConfig = (0, core_1.isObject)(persistedConfig) ? persistedConfig : JSON.parse(persistedConfig);
-            return parsedConfig;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    LazyLoadedSessionRecording.prototype._checkOverride = function (key, overrideFunction) {
+    }
+    get isStarted() {
+        return !!this._stopRrweb;
+    }
+    get _remoteConfig() {
+        const persistedConfig = this._instance.get_property(SESSION_RECORDING_REMOTE_CONFIG);
+        if (!persistedConfig) {
+            return undefined;
+        }
+        const parsedConfig = isObject(persistedConfig) ? persistedConfig : JSON.parse(persistedConfig);
+        return parsedConfig;
+    }
+    _checkOverride(key, overrideFunction) {
         var _a;
-        var overrideFlag = this._instance.get_property(key);
+        const overrideFlag = this._instance.get_property(key);
         if (overrideFlag) {
             overrideFunction();
             // Clean up the override flag after applying it
             (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.unregister(key);
         }
-    };
-    LazyLoadedSessionRecording.prototype.start = function (startReason) {
-        var _this = this;
+    }
+    start(startReason) {
         var _a;
-        var config = this._remoteConfig;
+        const config = this._remoteConfig;
         if (!config) {
             logger.info('remote config must be stored in persistence before recording can start');
             return;
         }
         // We want to ensure the sessionManager is reset if necessary on loading the recorder
-        var _b = this._sessionManager.checkAndGetSessionAndWindowId(), sessionId = _b.sessionId, windowId = _b.windowId;
+        const { sessionId, windowId } = this._sessionManager.checkAndGetSessionAndWindowId();
         this._sessionId = sessionId;
         this._windowId = windowId;
         if (config === null || config === void 0 ? void 0 : config.endpoint) {
             this._endpoint = config === null || config === void 0 ? void 0 : config.endpoint;
         }
         if ((config === null || config === void 0 ? void 0 : config.triggerMatchType) === 'any') {
-            this._statusMatcher = triggerMatching_1.anyMatchSessionRecordingStatus;
-            this._triggerMatching = new triggerMatching_1.OrTriggerMatching([this._eventTriggerMatching, this._urlTriggerMatching]);
+            this._statusMatcher = anyMatchSessionRecordingStatus;
+            this._triggerMatching = new OrTriggerMatching([this._eventTriggerMatching, this._urlTriggerMatching]);
         }
         else {
             // either the setting is "ALL"
             // or we default to the most restrictive
-            this._statusMatcher = triggerMatching_1.allMatchSessionRecordingStatus;
-            this._triggerMatching = new triggerMatching_1.AndTriggerMatching([this._eventTriggerMatching, this._urlTriggerMatching]);
+            this._statusMatcher = allMatchSessionRecordingStatus;
+            this._triggerMatching = new AndTriggerMatching([this._eventTriggerMatching, this._urlTriggerMatching]);
         }
         this._instance.register_for_session({
             $sdk_debug_replay_remote_trigger_matching_config: config === null || config === void 0 ? void 0 : config.triggerMatchType,
@@ -634,64 +544,64 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
         this._eventTriggerMatching.onConfig(config);
         (_a = this._removeEventTriggerCaptureHook) === null || _a === void 0 ? void 0 : _a.call(this);
         this._addEventTriggerListener();
-        this._linkedFlagMatching.onConfig(config, function (flag, variant) {
-            _this._reportStarted('linked_flag_matched', {
-                flag: flag,
-                variant: variant,
+        this._linkedFlagMatching.onConfig(config, (flag, variant) => {
+            this._reportStarted('linked_flag_matched', {
+                flag,
+                variant,
             });
         });
-        this._checkOverride(constants_1.SESSION_RECORDING_OVERRIDE_SAMPLING, function () {
-            _this.overrideSampling();
+        this._checkOverride(SESSION_RECORDING_OVERRIDE_SAMPLING, () => {
+            this.overrideSampling();
         });
-        this._checkOverride(constants_1.SESSION_RECORDING_OVERRIDE_LINKED_FLAG, function () {
-            _this.overrideLinkedFlag();
+        this._checkOverride(SESSION_RECORDING_OVERRIDE_LINKED_FLAG, () => {
+            this.overrideLinkedFlag();
         });
-        this._checkOverride(constants_1.SESSION_RECORDING_OVERRIDE_EVENT_TRIGGER, function () {
-            _this.overrideTrigger('event');
+        this._checkOverride(SESSION_RECORDING_OVERRIDE_EVENT_TRIGGER, () => {
+            this.overrideTrigger('event');
         });
-        this._checkOverride(constants_1.SESSION_RECORDING_OVERRIDE_URL_TRIGGER, function () {
-            _this.overrideTrigger('url');
+        this._checkOverride(SESSION_RECORDING_OVERRIDE_URL_TRIGGER, () => {
+            this.overrideTrigger('url');
         });
         this._makeSamplingDecision(this.sessionId);
         this._startRecorder();
         // calling addEventListener multiple times is safe and will not add duplicates
-        (0, utils_1.addEventListener)(globals_1.window, 'beforeunload', this._onBeforeUnload);
-        (0, utils_1.addEventListener)(globals_1.window, 'offline', this._onOffline);
-        (0, utils_1.addEventListener)(globals_1.window, 'online', this._onOnline);
-        (0, utils_1.addEventListener)(globals_1.window, 'visibilitychange', this._onVisibilityChange);
+        addEventListener(window, 'beforeunload', this._onBeforeUnload);
+        addEventListener(window, 'offline', this._onOffline);
+        addEventListener(window, 'online', this._onOnline);
+        addEventListener(window, 'visibilitychange', this._onVisibilityChange);
         if (!this._onSessionIdListener) {
             this._onSessionIdListener = this._sessionManager.onSessionId(this._onSessionIdCallback);
         }
         if (!this._onSessionIdleResetForcedListener) {
-            this._onSessionIdleResetForcedListener = this._sessionManager.on('forcedIdleReset', function () {
+            this._onSessionIdleResetForcedListener = this._sessionManager.on('forcedIdleReset', () => {
                 // a session was forced to reset due to idle timeout and lack of activity
-                _this._clearConditionalRecordingPersistence();
-                _this._isIdle = 'unknown';
-                _this.stop();
+                this._clearConditionalRecordingPersistence();
+                this._isIdle = 'unknown';
+                this.stop();
                 // then we want a session id listener to restart the recording when a new session starts
-                _this._forceIdleSessionIdListener = _this._sessionManager.onSessionId(function (sessionId, windowId, changeReason) {
+                this._forceIdleSessionIdListener = this._sessionManager.onSessionId((sessionId, windowId, changeReason) => {
                     var _a;
                     // this should first unregister itself
-                    (_a = _this._forceIdleSessionIdListener) === null || _a === void 0 ? void 0 : _a.call(_this);
-                    _this._forceIdleSessionIdListener = undefined;
-                    _this._onSessionIdCallback(sessionId, windowId, changeReason);
+                    (_a = this._forceIdleSessionIdListener) === null || _a === void 0 ? void 0 : _a.call(this);
+                    this._forceIdleSessionIdListener = undefined;
+                    this._onSessionIdCallback(sessionId, windowId, changeReason);
                 });
             });
         }
-        if ((0, core_1.isNullish)(this._removePageViewCaptureHook)) {
+        if (isNullish(this._removePageViewCaptureHook)) {
             // :TRICKY: rrweb does not capture navigation within SPA-s, so hook into our $pageview events to get access to all events.
             //   Dropping the initial event is fine (it's always captured by rrweb).
-            this._removePageViewCaptureHook = this._instance.on('eventCaptured', function (event) {
+            this._removePageViewCaptureHook = this._instance.on('eventCaptured', (event) => {
                 // If anything could go wrong here,
                 // it has the potential to block the main loop,
                 // so we catch all errors.
                 try {
                     if (event.event === '$pageview') {
-                        var href = (event === null || event === void 0 ? void 0 : event.properties.$current_url) ? _this._maskUrl(event === null || event === void 0 ? void 0 : event.properties.$current_url) : '';
+                        const href = (event === null || event === void 0 ? void 0 : event.properties.$current_url) ? this._maskUrl(event === null || event === void 0 ? void 0 : event.properties.$current_url) : '';
                         if (!href) {
                             return;
                         }
-                        _this._tryAddCustomEvent('$pageview', { href: href });
+                        this._tryAddCustomEvent('$pageview', { href });
                     }
                 }
                 catch (e) {
@@ -699,16 +609,16 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
                 }
             });
         }
-        if (this.status === triggerMatching_1.ACTIVE) {
+        if (this.status === ACTIVE) {
             this._reportStarted(startReason || 'recording_initialized');
         }
-    };
-    LazyLoadedSessionRecording.prototype.stop = function () {
+    }
+    stop() {
         var _a, _b, _c, _d, _e, _f, _g, _h;
-        globals_1.window === null || globals_1.window === void 0 ? void 0 : globals_1.window.removeEventListener('beforeunload', this._onBeforeUnload);
-        globals_1.window === null || globals_1.window === void 0 ? void 0 : globals_1.window.removeEventListener('offline', this._onOffline);
-        globals_1.window === null || globals_1.window === void 0 ? void 0 : globals_1.window.removeEventListener('online', this._onOnline);
-        globals_1.window === null || globals_1.window === void 0 ? void 0 : globals_1.window.removeEventListener('visibilitychange', this._onVisibilityChange);
+        window === null || window === void 0 ? void 0 : window.removeEventListener('beforeunload', this._onBeforeUnload);
+        window === null || window === void 0 ? void 0 : window.removeEventListener('offline', this._onOffline);
+        window === null || window === void 0 ? void 0 : window.removeEventListener('online', this._onOnline);
+        window === null || window === void 0 ? void 0 : window.removeEventListener('visibilitychange', this._onVisibilityChange);
         this._clearBuffer();
         clearInterval(this._fullSnapshotTimer);
         this._clearFlushBufferTimer();
@@ -733,16 +643,15 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
         (_h = this._stopRrweb) === null || _h === void 0 ? void 0 : _h.call(this);
         this._stopRrweb = undefined;
         logger.info('stopped');
-    };
-    LazyLoadedSessionRecording.prototype.onRRwebEmit = function (rawEvent) {
-        var _this = this;
+    }
+    onRRwebEmit(rawEvent) {
         var _a, _b;
         this._processQueuedEvents();
-        if (!rawEvent || !(0, core_1.isObject)(rawEvent)) {
+        if (!rawEvent || !isObject(rawEvent)) {
             return;
         }
-        if (rawEvent.type === rrweb_types_1.EventType.Meta) {
-            var href = this._maskUrl(rawEvent.data.href);
+        if (rawEvent.type === EventType.Meta) {
+            const href = this._maskUrl(rawEvent.data.href);
             this._lastHref = href;
             if (!href) {
                 return;
@@ -753,30 +662,30 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             this._pageViewFallBack();
         }
         // Check if the URL matches any trigger patterns
-        this._urlTriggerMatching.checkUrlTriggerConditions(function () { return _this._pauseRecording(); }, function () { return _this._resumeRecording(); }, function (triggerType) { return _this._activateTrigger(triggerType); });
+        this._urlTriggerMatching.checkUrlTriggerConditions(() => this._pauseRecording(), () => this._resumeRecording(), (triggerType) => this._activateTrigger(triggerType));
         // always have to check if the URL is blocked really early,
         // or you risk getting stuck in a loop
         if (this._urlTriggerMatching.urlBlocked && !isRecordingPausedEvent(rawEvent)) {
             return;
         }
         // we're processing a full snapshot, so we should reset the timer
-        if (rawEvent.type === rrweb_types_1.EventType.FullSnapshot) {
+        if (rawEvent.type === EventType.FullSnapshot) {
             this._scheduleFullSnapshot();
             // Full snapshots reset rrweb's node IDs, so clear any logged node tracking
             (_a = this._mutationThrottler) === null || _a === void 0 ? void 0 : _a.reset();
         }
         // Clear the buffer if waiting for a trigger and only keep data from after the current full snapshot
         // we always start trigger pending so need to wait for flags before we know if we're really pending
-        if (rawEvent.type === rrweb_types_1.EventType.FullSnapshot &&
-            this._triggerMatching.triggerStatus(this.sessionId) === triggerMatching_1.TRIGGER_PENDING) {
+        if (rawEvent.type === EventType.FullSnapshot &&
+            this._triggerMatching.triggerStatus(this.sessionId) === TRIGGER_PENDING) {
             this._clearBufferBeforeMostRecentMeta();
         }
-        var throttledEvent = this._mutationThrottler ? this._mutationThrottler.throttleMutations(rawEvent) : rawEvent;
+        const throttledEvent = this._mutationThrottler ? this._mutationThrottler.throttleMutations(rawEvent) : rawEvent;
         if (!throttledEvent) {
             return;
         }
         // TODO: Re-add ensureMaxMessageSize once we are confident in it
-        var event = (0, sessionrecording_utils_1.truncateLargeConsoleLogs)(throttledEvent);
+        const event = truncateLargeConsoleLogs(throttledEvent);
         this._updateWindowAndSessionIds(event);
         // When in an idle state we keep recording but don't capture the events,
         // we don't want to return early if idle is 'unknown'
@@ -787,10 +696,10 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             // session idle events have a timestamp when rrweb sees them
             // which can artificially lengthen a session
             // we know when we detected it based on the payload and can correct the timestamp
-            var payload = event.data.payload;
+            const payload = event.data.payload;
             if (payload) {
-                var lastActivity = payload.lastActivityTimestamp;
-                var threshold = payload.threshold;
+                const lastActivity = payload.lastActivityTimestamp;
+                const threshold = payload.threshold;
                 event.timestamp = lastActivity + threshold;
             }
         }
@@ -798,51 +707,46 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             // session ending/starting events have a timestamp when rrweb sees them
             // which can artificially lengthen a session
             // we know when the last activity was based on the payload and can correct the timestamp
-            var payload = event.data.payload;
+            const payload = event.data.payload;
             if (payload === null || payload === void 0 ? void 0 : payload.lastActivityTimestamp) {
                 event.timestamp = payload.lastActivityTimestamp;
             }
         }
-        var eventToSend = ((_b = this._instance.config.session_recording.compress_events) !== null && _b !== void 0 ? _b : true) ? compressEvent(event) : event;
-        var size = (0, sessionrecording_utils_1.estimateSize)(eventToSend);
-        var properties = {
+        const eventToSend = ((_b = this._instance.config.session_recording.compress_events) !== null && _b !== void 0 ? _b : true) ? compressEvent(event) : event;
+        const size = estimateSize(eventToSend);
+        const properties = {
             $snapshot_bytes: size,
             $snapshot_data: eventToSend,
             $session_id: this._sessionId,
             $window_id: this._windowId,
         };
-        if (this.status === triggerMatching_1.DISABLED) {
+        if (this.status === DISABLED) {
             this._clearBuffer();
             return;
         }
         this._captureSnapshotBuffered(properties);
-    };
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "status", {
-        get: function () {
-            return this._statusMatcher({
-                // can't get here without recording being enabled...
-                receivedFlags: true,
-                isRecordingEnabled: true,
-                // things that do still vary
-                isSampled: this._isSampled,
-                urlTriggerMatching: this._urlTriggerMatching,
-                eventTriggerMatching: this._eventTriggerMatching,
-                linkedFlagMatching: this._linkedFlagMatching,
-                sessionId: this.sessionId,
-            });
-        },
-        enumerable: false,
-        configurable: true
-    });
-    LazyLoadedSessionRecording.prototype.log = function (message, level) {
+    }
+    get status() {
+        return this._statusMatcher({
+            // can't get here without recording being enabled...
+            receivedFlags: true,
+            isRecordingEnabled: true,
+            // things that do still vary
+            isSampled: this._isSampled,
+            urlTriggerMatching: this._urlTriggerMatching,
+            eventTriggerMatching: this._eventTriggerMatching,
+            linkedFlagMatching: this._linkedFlagMatching,
+            sessionId: this.sessionId,
+        });
+    }
+    log(message, level = 'log') {
         var _a;
-        if (level === void 0) { level = 'log'; }
         (_a = this._instance.sessionRecording) === null || _a === void 0 ? void 0 : _a.onRRwebEmit({
             type: 6,
             data: {
                 plugin: 'rrweb/console@1',
                 payload: {
-                    level: level,
+                    level,
                     trace: [],
                     // Even though it is a string, we stringify it as that's what rrweb expects
                     payload: [JSON.stringify(message)],
@@ -850,134 +754,127 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             },
             timestamp: Date.now(),
         });
-    };
-    LazyLoadedSessionRecording.prototype.overrideLinkedFlag = function () {
+    }
+    overrideLinkedFlag() {
         this._linkedFlagMatching.linkedFlagSeen = true;
         this._tryTakeFullSnapshot();
         this._reportStarted('linked_flag_overridden');
-    };
+    }
     /**
      * this ignores the sampling config and (if other conditions are met) causes capture to start
      *
      * It is not usual to call this directly,
      * instead call `posthog.startSessionRecording({sampling: true})`
      * */
-    LazyLoadedSessionRecording.prototype.overrideSampling = function () {
+    overrideSampling() {
         var _a;
-        var _b;
-        (_b = this._instance.persistence) === null || _b === void 0 ? void 0 : _b.register((_a = {},
+        (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.register({
             // short-circuits the `makeSamplingDecision` function in the session recording module
-            _a[constants_1.SESSION_RECORDING_IS_SAMPLED] = this.sessionId,
-            _a));
+            [SESSION_RECORDING_IS_SAMPLED]: this.sessionId,
+        });
         this._tryTakeFullSnapshot();
         this._reportStarted('sampling_overridden');
-    };
+    }
     /**
      * this ignores the URL/Event trigger config and (if other conditions are met) causes capture to start
      *
      * It is not usual to call this directly,
      * instead call `posthog.startSessionRecording({trigger: 'url' | 'event'})`
      * */
-    LazyLoadedSessionRecording.prototype.overrideTrigger = function (triggerType) {
+    overrideTrigger(triggerType) {
         this._activateTrigger(triggerType);
-    };
-    LazyLoadedSessionRecording.prototype._clearFlushBufferTimer = function () {
+    }
+    _clearFlushBufferTimer() {
         if (this._flushBufferTimer) {
             clearTimeout(this._flushBufferTimer);
             this._flushBufferTimer = undefined;
         }
-    };
-    LazyLoadedSessionRecording.prototype._flushBuffer = function () {
-        var _this = this;
+    }
+    _flushBuffer() {
         this._clearFlushBufferTimer();
-        var minimumDuration = this._minimumDuration;
-        var sessionDuration = this._sessionDuration;
+        const minimumDuration = this._minimumDuration;
+        const sessionDuration = this._sessionDuration;
         // if we have old data in the buffer but the session has rotated, then the
         // session duration might be negative. In that case we want to flush the buffer
-        var isPositiveSessionDuration = (0, core_1.isNumber)(sessionDuration) && sessionDuration >= 0;
-        var isBelowMinimumDuration = (0, core_1.isNumber)(minimumDuration) && isPositiveSessionDuration && sessionDuration < minimumDuration;
-        if (this.status === triggerMatching_1.BUFFERING || this.status === triggerMatching_1.PAUSED || this.status === triggerMatching_1.DISABLED || isBelowMinimumDuration) {
-            this._flushBufferTimer = setTimeout(function () {
-                _this._flushBuffer();
-            }, exports.RECORDING_BUFFER_TIMEOUT);
+        const isPositiveSessionDuration = isNumber(sessionDuration) && sessionDuration >= 0;
+        const isBelowMinimumDuration = isNumber(minimumDuration) && isPositiveSessionDuration && sessionDuration < minimumDuration;
+        if (this.status === BUFFERING || this.status === PAUSED || this.status === DISABLED || isBelowMinimumDuration) {
+            this._flushBufferTimer = setTimeout(() => {
+                this._flushBuffer();
+            }, RECORDING_BUFFER_TIMEOUT);
             return this._buffer;
         }
         if (this._buffer.data.length > 0) {
-            var snapshotEvents = splitBuffer(this._buffer);
-            snapshotEvents.forEach(function (snapshotBuffer) {
+            const snapshotEvents = splitBuffer(this._buffer);
+            snapshotEvents.forEach((snapshotBuffer) => {
                 var _a;
-                (_a = _this._flushedSizeTracker) === null || _a === void 0 ? void 0 : _a.trackSize(snapshotBuffer.size);
-                _this._captureSnapshot({
+                (_a = this._flushedSizeTracker) === null || _a === void 0 ? void 0 : _a.trackSize(snapshotBuffer.size);
+                this._captureSnapshot({
                     $snapshot_bytes: snapshotBuffer.size,
                     $snapshot_data: snapshotBuffer.data,
                     $session_id: snapshotBuffer.sessionId,
                     $window_id: snapshotBuffer.windowId,
                     $lib: 'web',
-                    $lib_version: config_2.default.LIB_VERSION,
+                    $lib_version: Config.LIB_VERSION,
                 });
             });
         }
         // buffer is empty, we clear it in case the session id has changed
         return this._clearBuffer();
-    };
-    LazyLoadedSessionRecording.prototype._captureSnapshotBuffered = function (properties) {
-        var _this = this;
+    }
+    _captureSnapshotBuffered(properties) {
         var _a;
-        var additionalBytes = 2 + (((_a = this._buffer) === null || _a === void 0 ? void 0 : _a.data.length) || 0); // 2 bytes for the array brackets and 1 byte for each comma
+        const additionalBytes = 2 + (((_a = this._buffer) === null || _a === void 0 ? void 0 : _a.data.length) || 0); // 2 bytes for the array brackets and 1 byte for each comma
         if (!this._isIdle && // we never want to flush when idle
-            (this._buffer.size + properties.$snapshot_bytes + additionalBytes > exports.RECORDING_MAX_EVENT_SIZE ||
+            (this._buffer.size + properties.$snapshot_bytes + additionalBytes > RECORDING_MAX_EVENT_SIZE ||
                 this._buffer.sessionId !== this._sessionId)) {
             this._buffer = this._flushBuffer();
         }
         this._buffer.size += properties.$snapshot_bytes;
         this._buffer.data.push(properties.$snapshot_data);
         if (!this._flushBufferTimer && !this._isIdle) {
-            this._flushBufferTimer = setTimeout(function () {
-                _this._flushBuffer();
-            }, exports.RECORDING_BUFFER_TIMEOUT);
+            this._flushBufferTimer = setTimeout(() => {
+                this._flushBuffer();
+            }, RECORDING_BUFFER_TIMEOUT);
         }
-    };
-    LazyLoadedSessionRecording.prototype._captureSnapshot = function (properties) {
+    }
+    _captureSnapshot(properties) {
         // :TRICKY: Make sure we batch these requests, use a custom endpoint and don't truncate the strings.
         this._instance.capture('$snapshot', properties, {
             _url: this._instance.requestRouter.endpointFor('api', this._endpoint),
             _noTruncate: true,
-            _batchKey: exports.SESSION_RECORDING_BATCH_KEY,
+            _batchKey: SESSION_RECORDING_BATCH_KEY,
             skip_client_rate_limiting: true,
         });
-    };
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "_sessionDuration", {
-        get: function () {
-            var _a, _b;
-            var mostRecentSnapshot = (_a = this._buffer) === null || _a === void 0 ? void 0 : _a.data[((_b = this._buffer) === null || _b === void 0 ? void 0 : _b.data.length) - 1];
-            var sessionStartTimestamp = this._sessionManager.checkAndGetSessionAndWindowId(true).sessionStartTimestamp;
-            return mostRecentSnapshot ? mostRecentSnapshot.timestamp - sessionStartTimestamp : null;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    LazyLoadedSessionRecording.prototype._clearBufferBeforeMostRecentMeta = function () {
+    }
+    get _sessionDuration() {
+        var _a, _b;
+        const mostRecentSnapshot = (_a = this._buffer) === null || _a === void 0 ? void 0 : _a.data[((_b = this._buffer) === null || _b === void 0 ? void 0 : _b.data.length) - 1];
+        const { sessionStartTimestamp } = this._sessionManager.checkAndGetSessionAndWindowId(true);
+        return mostRecentSnapshot ? mostRecentSnapshot.timestamp - sessionStartTimestamp : null;
+    }
+    _clearBufferBeforeMostRecentMeta() {
         if (!this._buffer || this._buffer.data.length === 0) {
             return this._clearBuffer();
         }
         // Find the last meta event index by iterating backwards
-        var lastMetaIndex = -1;
-        for (var i = this._buffer.data.length - 1; i >= 0; i--) {
-            if (this._buffer.data[i].type === rrweb_types_1.EventType.Meta) {
+        let lastMetaIndex = -1;
+        for (let i = this._buffer.data.length - 1; i >= 0; i--) {
+            if (this._buffer.data[i].type === EventType.Meta) {
                 lastMetaIndex = i;
                 break;
             }
         }
         if (lastMetaIndex >= 0) {
             this._buffer.data = this._buffer.data.slice(lastMetaIndex);
-            this._buffer.size = this._buffer.data.reduce(function (acc, curr) { return acc + (0, sessionrecording_utils_1.estimateSize)(curr); }, 0);
+            this._buffer.size = this._buffer.data.reduce((acc, curr) => acc + estimateSize(curr), 0);
             return this._buffer;
         }
         else {
             return this._clearBuffer();
         }
-    };
-    LazyLoadedSessionRecording.prototype._clearBuffer = function () {
+    }
+    _clearBuffer() {
         this._buffer = {
             size: 0,
             data: [],
@@ -985,29 +882,29 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             windowId: this._windowId,
         };
         return this._buffer;
-    };
-    LazyLoadedSessionRecording.prototype._reportStarted = function (startReason, tagPayload) {
+    }
+    _reportStarted(startReason, tagPayload) {
         this._instance.register_for_session({
             $session_recording_start_reason: startReason,
         });
         logger.info(startReason.replace('_', ' '), tagPayload);
-        if (!(0, core_1.includes)(['recording_initialized', 'session_id_changed'], startReason)) {
+        if (!includes(['recording_initialized', 'session_id_changed'], startReason)) {
             this._tryAddCustomEvent(startReason, tagPayload);
         }
-    };
-    LazyLoadedSessionRecording.prototype._isInteractiveEvent = function (event) {
+    }
+    _isInteractiveEvent(event) {
         var _a;
-        return (event.type === sessionrecording_utils_1.INCREMENTAL_SNAPSHOT_EVENT_TYPE &&
+        return (event.type === INCREMENTAL_SNAPSHOT_EVENT_TYPE &&
             ACTIVE_SOURCES.indexOf((_a = event.data) === null || _a === void 0 ? void 0 : _a.source) !== -1);
-    };
-    LazyLoadedSessionRecording.prototype._updateWindowAndSessionIds = function (event) {
+    }
+    _updateWindowAndSessionIds(event) {
         // Some recording events are triggered by non-user events (e.g. "X minutes ago" text updating on the screen).
         // We don't want to extend the session or trigger a new session in these cases. These events are designated by event
         // type -> incremental update, and source -> mutation.
-        var isUserInteraction = this._isInteractiveEvent(event);
+        const isUserInteraction = this._isInteractiveEvent(event);
         if (!isUserInteraction && !this._isIdle) {
             // We check if the lastActivityTimestamp is old enough to go idle
-            var timeSinceLastActivity = event.timestamp - this._lastActivityTimestamp;
+            const timeSinceLastActivity = event.timestamp - this._lastActivityTimestamp;
             if (timeSinceLastActivity > this._sessionIdleThresholdMilliseconds) {
                 // we mark as idle right away,
                 // or else we get multiple idle events
@@ -1026,11 +923,11 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
                 this._flushBuffer();
             }
         }
-        var returningFromIdle = false;
+        let returningFromIdle = false;
         if (isUserInteraction) {
             this._lastActivityTimestamp = event.timestamp;
             if (this._isIdle) {
-                var idleWasUnknown = this._isIdle === 'unknown';
+                const idleWasUnknown = this._isIdle === 'unknown';
                 // Remove the idle state
                 this._isIdle = false;
                 // if the idle state was unknown, we don't want to add an event, since we're just in bootup
@@ -1048,9 +945,9 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             return;
         }
         // We only want to extend the session if it is an interactive event.
-        var _a = this._sessionManager.checkAndGetSessionAndWindowId(!isUserInteraction, event.timestamp), windowId = _a.windowId, sessionId = _a.sessionId;
-        var sessionIdChanged = this._sessionId !== sessionId;
-        var windowIdChanged = this._windowId !== windowId;
+        const { windowId, sessionId } = this._sessionManager.checkAndGetSessionAndWindowId(!isUserInteraction, event.timestamp);
+        const sessionIdChanged = this._sessionId !== sessionId;
+        const windowIdChanged = this._windowId !== windowId;
         this._windowId = windowId;
         this._sessionId = sessionId;
         if (sessionIdChanged || windowIdChanged) {
@@ -1060,26 +957,25 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
         else if (returningFromIdle) {
             this._scheduleFullSnapshot();
         }
-    };
-    LazyLoadedSessionRecording.prototype._clearConditionalRecordingPersistence = function () {
+    }
+    _clearConditionalRecordingPersistence() {
         var _a, _b, _c, _d, _e, _f;
-        (_b = (_a = this._instance) === null || _a === void 0 ? void 0 : _a.persistence) === null || _b === void 0 ? void 0 : _b.unregister(constants_1.SESSION_RECORDING_EVENT_TRIGGER_ACTIVATED_SESSION);
-        (_d = (_c = this._instance) === null || _c === void 0 ? void 0 : _c.persistence) === null || _d === void 0 ? void 0 : _d.unregister(constants_1.SESSION_RECORDING_URL_TRIGGER_ACTIVATED_SESSION);
-        (_f = (_e = this._instance) === null || _e === void 0 ? void 0 : _e.persistence) === null || _f === void 0 ? void 0 : _f.unregister(constants_1.SESSION_RECORDING_IS_SAMPLED);
-    };
-    LazyLoadedSessionRecording.prototype._makeSamplingDecision = function (sessionId) {
-        var _a;
-        var _b, _c;
-        var sessionIdChanged = this._sessionId !== sessionId;
+        (_b = (_a = this._instance) === null || _a === void 0 ? void 0 : _a.persistence) === null || _b === void 0 ? void 0 : _b.unregister(SESSION_RECORDING_EVENT_TRIGGER_ACTIVATED_SESSION);
+        (_d = (_c = this._instance) === null || _c === void 0 ? void 0 : _c.persistence) === null || _d === void 0 ? void 0 : _d.unregister(SESSION_RECORDING_URL_TRIGGER_ACTIVATED_SESSION);
+        (_f = (_e = this._instance) === null || _e === void 0 ? void 0 : _e.persistence) === null || _f === void 0 ? void 0 : _f.unregister(SESSION_RECORDING_IS_SAMPLED);
+    }
+    _makeSamplingDecision(sessionId) {
+        var _a, _b;
+        const sessionIdChanged = this._sessionId !== sessionId;
         // capture the current sample rate
         // because it is re-used multiple times
         // and the bundler won't minimize any of the references
-        var currentSampleRate = this._sampleRate;
-        if (!(0, core_1.isNumber)(currentSampleRate)) {
-            (_b = this._instance.persistence) === null || _b === void 0 ? void 0 : _b.unregister(constants_1.SESSION_RECORDING_IS_SAMPLED);
+        const currentSampleRate = this._sampleRate;
+        if (!isNumber(currentSampleRate)) {
+            (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.unregister(SESSION_RECORDING_IS_SAMPLED);
             return;
         }
-        var storedIsSampled = this._isSampled;
+        const storedIsSampled = this._isSampled;
         /**
          * if we get this far, then we should make a sampling decision.
          * When the session id changes or there is no stored sampling decision for this session id
@@ -1087,67 +983,60 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
          *
          * Otherwise, we should use the stored decision.
          */
-        var makeDecision = sessionIdChanged || !(0, core_1.isBoolean)(storedIsSampled);
-        var shouldSample = makeDecision ? (0, sampling_1.sampleOnProperty)(sessionId, currentSampleRate) : storedIsSampled;
+        const makeDecision = sessionIdChanged || !isBoolean(storedIsSampled);
+        const shouldSample = makeDecision ? sampleOnProperty(sessionId, currentSampleRate) : storedIsSampled;
         if (makeDecision) {
             if (shouldSample) {
-                this._reportStarted(triggerMatching_1.SAMPLED);
+                this._reportStarted(SAMPLED);
             }
             else {
-                logger.warn("Sample rate (".concat(currentSampleRate, ") has determined that this sessionId (").concat(sessionId, ") will not be sent to the server."));
+                logger.warn(`Sample rate (${currentSampleRate}) has determined that this sessionId (${sessionId}) will not be sent to the server.`);
             }
             this._tryAddCustomEvent('samplingDecisionMade', {
                 sampleRate: currentSampleRate,
                 isSampled: shouldSample,
             });
         }
-        (_c = this._instance.persistence) === null || _c === void 0 ? void 0 : _c.register((_a = {},
-            _a[constants_1.SESSION_RECORDING_IS_SAMPLED] = shouldSample ? sessionId : false,
-            _a));
-    };
-    LazyLoadedSessionRecording.prototype._addEventTriggerListener = function () {
-        var _this = this;
-        if (this._eventTriggerMatching._eventTriggers.length === 0 || !(0, core_1.isNullish)(this._removeEventTriggerCaptureHook)) {
+        (_b = this._instance.persistence) === null || _b === void 0 ? void 0 : _b.register({
+            [SESSION_RECORDING_IS_SAMPLED]: shouldSample ? sessionId : false,
+        });
+    }
+    _addEventTriggerListener() {
+        if (this._eventTriggerMatching._eventTriggers.length === 0 || !isNullish(this._removeEventTriggerCaptureHook)) {
             return;
         }
-        this._removeEventTriggerCaptureHook = this._instance.on('eventCaptured', function (event) {
+        this._removeEventTriggerCaptureHook = this._instance.on('eventCaptured', (event) => {
             // If anything could go wrong here, it has the potential to block the main loop,
             // so we catch all errors.
             try {
-                if (_this._eventTriggerMatching._eventTriggers.includes(event.event)) {
-                    _this._activateTrigger('event');
+                if (this._eventTriggerMatching._eventTriggers.includes(event.event)) {
+                    this._activateTrigger('event');
                 }
             }
             catch (e) {
                 logger.error('Could not activate event trigger', e);
             }
         });
-    };
-    Object.defineProperty(LazyLoadedSessionRecording.prototype, "sdkDebugProperties", {
-        get: function () {
-            var _a;
-            var sessionStartTimestamp = this._sessionManager.checkAndGetSessionAndWindowId(true).sessionStartTimestamp;
-            return {
-                $recording_status: this.status,
-                $sdk_debug_replay_internal_buffer_length: this._buffer.data.length,
-                $sdk_debug_replay_internal_buffer_size: this._buffer.size,
-                $sdk_debug_current_session_duration: this._sessionDuration,
-                $sdk_debug_session_start: sessionStartTimestamp,
-                $sdk_debug_replay_flushed_size: (_a = this._flushedSizeTracker) === null || _a === void 0 ? void 0 : _a.currentTrackedSize,
-            };
-        },
-        enumerable: false,
-        configurable: true
-    });
-    LazyLoadedSessionRecording.prototype._startRecorder = function () {
-        var e_1, _a;
-        var _this = this;
-        var _b, _c, _d, _e;
+    }
+    get sdkDebugProperties() {
+        var _a;
+        const { sessionStartTimestamp } = this._sessionManager.checkAndGetSessionAndWindowId(true);
+        return {
+            $recording_status: this.status,
+            $sdk_debug_replay_internal_buffer_length: this._buffer.data.length,
+            $sdk_debug_replay_internal_buffer_size: this._buffer.size,
+            $sdk_debug_current_session_duration: this._sessionDuration,
+            $sdk_debug_session_start: sessionStartTimestamp,
+            $sdk_debug_replay_flushed_size: (_a = this._flushedSizeTracker) === null || _a === void 0 ? void 0 : _a.currentTrackedSize,
+        };
+    }
+    _startRecorder() {
+        var _a, _b, _c, _d;
         if (this._stopRrweb) {
             return;
         }
         // rrweb config info: https://github.com/rrweb-io/rrweb/blob/7d5d0033258d6c29599fb08412202d9a2c7b9413/src/record/index.ts#L28
-        var sessionRecordingOptions = {
+        const sessionRecordingOptions = {
             // a limited set of the rrweb config options that we expose to our users.
             // see https://github.com/rrweb-io/rrweb/blob/master/guide.md
             blockClass: 'ph-no-capture',
@@ -1165,29 +1054,19 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             recordCrossOriginIframes: false,
         };
         // only allows user to set our allowlisted options
-        var userSessionRecordingOptions = this._instance.config.session_recording;
-        try {
-            for (var _f = __values(Object.entries(userSessionRecordingOptions || {})), _g = _f.next(); !_g.done; _g = _f.next()) {
-                var _h = __read(_g.value, 2), key = _h[0], value = _h[1];
-                if (key in sessionRecordingOptions) {
-                    if (key === 'maskInputOptions') {
-                        // ensure password config is set if not included
-                        sessionRecordingOptions.maskInputOptions = __assign({ password: true }, value);
-                    }
-                    else {
-                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                        // @ts-ignore
-                        sessionRecordingOptions[key] = value;
-                    }
+        const userSessionRecordingOptions = this._instance.config.session_recording;
+        for (const [key, value] of Object.entries(userSessionRecordingOptions || {})) {
+            if (key in sessionRecordingOptions) {
+                if (key === 'maskInputOptions') {
+                    // ensure password config is set if not included
+                    sessionRecordingOptions.maskInputOptions = { password: true, ...value };
+                }
+                else {
+                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                    // @ts-ignore
+                    sessionRecordingOptions[key] = value;
                 }
             }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (_g && !_g.done && (_a = _f.return)) _a.call(_f);
-            }
-            finally { if (e_1) throw e_1.error; }
         }
         if (this._canvasRecording && this._canvasRecording.enabled) {
             sessionRecordingOptions.recordCanvas = true;
@@ -1195,48 +1074,49 @@ var LazyLoadedSessionRecording = /** @class */ (function () {
             sessionRecordingOptions.dataURLOptions = { type: 'image/webp', quality: this._canvasRecording.quality };
         }
         if (this._masking) {
-            sessionRecordingOptions.maskAllInputs = (_b = this._masking.maskAllInputs) !== null && _b !== void 0 ? _b : true;
-            sessionRecordingOptions.maskTextSelector = (_c = this._masking.maskTextSelector) !== null && _c !== void 0 ? _c : undefined;
-            sessionRecordingOptions.blockSelector = (_d = this._masking.blockSelector) !== null && _d !== void 0 ? _d : undefined;
+            sessionRecordingOptions.maskAllInputs = (_a = this._masking.maskAllInputs) !== null && _a !== void 0 ? _a : true;
+            sessionRecordingOptions.maskTextSelector = (_b = this._masking.maskTextSelector) !== null && _b !== void 0 ? _b : undefined;
+            sessionRecordingOptions.blockSelector = (_c = this._masking.blockSelector) !== null && _c !== void 0 ? _c : undefined;
         }
-        var rrwebRecord = getRRWebRecord();
+        const rrwebRecord = getRRWebRecord();
         if (!rrwebRecord) {
             logger.error('_startRecorder was called but rrwebRecord is not available. This indicates something has gone wrong.');
             return;
         }
         this._mutationThrottler =
-            (_e = this._mutationThrottler) !== null && _e !== void 0 ? _e : new mutation_throttler_1.MutationThrottler(rrwebRecord, {
+            (_d = this._mutationThrottler) !== null && _d !== void 0 ? _d : new MutationThrottler(rrwebRecord, {
                 refillRate: this._instance.config.session_recording.__mutationThrottlerRefillRate,
                 bucketSize: this._instance.config.session_recording.__mutationThrottlerBucketSize,
-                onBlockedNode: function (id, node) {
-                    var message = "Too many mutations on node '".concat(id, "'. Rate limiting. This could be due to SVG animations or something similar");
+                onBlockedNode: (id, node) => {
+                    const message = `Too many mutations on node '${id}'. Rate limiting. This could be due to SVG animations or something similar`;
                     logger.info(message, {
                         node: node,
                     });
-                    _this.log(LOGGER_PREFIX + ' ' + message, 'warn');
+                    this.log(LOGGER_PREFIX + ' ' + message, 'warn');
                 },
             });
-        var activePlugins = this._gatherRRWebPlugins();
-        this._stopRrweb = rrwebRecord(__assign({ emit: function (event) {
-                _this.onRRwebEmit(event);
-            }, plugins: activePlugins }, sessionRecordingOptions));
+        const activePlugins = this._gatherRRWebPlugins();
+        this._stopRrweb = rrwebRecord({
+            emit: (event) => {
+                this.onRRwebEmit(event);
+            },
+            plugins: activePlugins,
+            ...sessionRecordingOptions,
+        });
         // We reset the last activity timestamp, resetting the idle timer
         this._lastActivityTimestamp = Date.now();
         // stay unknown if we're not sure if we're idle or not
-        this._isIdle = (0, core_1.isBoolean)(this._isIdle) ? this._isIdle : 'unknown';
+        this._isIdle = isBoolean(this._isIdle) ? this._isIdle : 'unknown';
         this.tryAddCustomEvent('$remote_config_received', this._remoteConfig);
         this._tryAddCustomEvent('$session_options', {
-            sessionRecordingOptions: sessionRecordingOptions,
-            activePlugins: activePlugins.map(function (p) { return p === null || p === void 0 ? void 0 : p.name; }),
+            sessionRecordingOptions,
+            activePlugins: activePlugins.map((p) => p === null || p === void 0 ? void 0 : p.name),
         });
         this._tryAddCustomEvent('$posthog_config', {
             config: this._instance.config,
         });
-    };
-    LazyLoadedSessionRecording.prototype.tryAddCustomEvent = function (tag, payload) {
+    }
+    tryAddCustomEvent(tag, payload) {
         return this._tryAddCustomEvent(tag, payload);
-    };
-    return LazyLoadedSessionRecording;
-}());
-exports.LazyLoadedSessionRecording = LazyLoadedSessionRecording;
-//# sourceMappingURL=lazy-loaded-session-recorder.js.map
+    }
+}

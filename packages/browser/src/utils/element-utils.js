@@ -1,16 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isElementInToolbar = isElementInToolbar;
-exports.isElementNode = isElementNode;
-exports.isTag = isTag;
-exports.isTextNode = isTextNode;
-exports.isDocumentFragment = isDocumentFragment;
-var constants_1 = require("../constants");
-function isElementInToolbar(el) {
+import { TOOLBAR_CONTAINER_CLASS, TOOLBAR_ID } from '../constants';
+export function isElementInToolbar(el) {
     var _a;
     if (el instanceof Element) {
         // closest isn't available in IE11, but we'll polyfill when bundling
-        return el.id === constants_1.TOOLBAR_ID || !!((_a = el.closest) === null || _a === void 0 ? void 0 : _a.call(el, '.' + constants_1.TOOLBAR_CONTAINER_CLASS));
+        return el.id === TOOLBAR_ID || !!((_a = el.closest) === null || _a === void 0 ? void 0 : _a.call(el, '.' + TOOLBAR_CONTAINER_CLASS));
     }
     return false;
 }
@@ -19,7 +12,7 @@ function isElementInToolbar(el) {
  * @param {Element} el - element to check
  * @returns {boolean} whether el is of the correct nodeType
  */
-function isElementNode(el) {
+export function isElementNode(el) {
     return !!el && el.nodeType === 1; // Node.ELEMENT_NODE - use integer constant for browser portability
 }
 /*
@@ -32,7 +25,7 @@ function isElementNode(el) {
  * @param {string} tag - tag name (e.g., "div")
  * @returns {boolean} whether el is of the given tag type
  */
-function isTag(el, tag) {
+export function isTag(el, tag) {
     return !!el && !!el.tagName && el.tagName.toLowerCase() === tag.toLowerCase();
 }
 /*
@@ -40,7 +33,7 @@ function isTag(el, tag) {
  * @param {Element} el - element to check
  * @returns {boolean} whether el is of the correct nodeType
  */
-function isTextNode(el) {
+export function isTextNode(el) {
     return !!el && el.nodeType === 3; // Node.TEXT_NODE - use integer constant for browser portability
 }
 /*
@@ -48,7 +41,6 @@ function isTextNode(el) {
  * @param {Element} el - element to check
  * @returns {boolean} whether el is of the correct nodeType
  */
-function isDocumentFragment(el) {
+export function isDocumentFragment(el) {
     return !!el && el.nodeType === 11; // Node.DOCUMENT_FRAGMENT_NODE - use integer constant for browser portability
 }
-//# sourceMappingURL=element-utils.js.map

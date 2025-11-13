@@ -1,26 +1,29 @@
-"use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
+import { SESSION_RECORDING_IS_SAMPLED, SESSION_RECORDING_OVERRIDE_SAMPLING, SESSION_RECORDING_OVERRIDE_LINKED_FLAG, SESSION_RECORDING_OVERRIDE_EVENT_TRIGGER, SESSION_RECORDING_OVERRIDE_URL_TRIGGER, SESSION_RECORDING_REMOTE_CONFIG, } from '../../constants';
+import { isNullish, isUndefined } from '@agrid/core';
+import { createLogger } from '../../utils/logger';
+import { assignableWindow, window, } from '../../utils/globals';
+import { DISABLED, LAZY_LOADING } from './external/triggerMatching';
+const LOGGER_PREFIX = '[SessionRecording]';
+const logger = createLogger(LOGGER_PREFIX);
+export class SessionRecording {
+    get started() {
+        var _a;
+        return !!((_a = this._lazyLoadedSessionRecording) === null || _a === void 0 ? void 0 : _a.isStarted);
+    }
+    /**
+     * defaults to buffering mode until a flags response is received
+     * once a flags response is received status can be disabled, active or sampled
+     */
+    get status() {
+        if (this._lazyLoadedSessionRecording) {
+            return this._lazyLoadedSessionRecording.status;
         }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SessionRecording = void 0;
-var constants_1 = require("../../constants");
-var core_1 = require("@agrid/core");
-var logger_1 = require("../../utils/logger");
-var globals_1 = require("../../utils/globals");
-var triggerMatching_1 = require("./external/triggerMatching");
-var LOGGER_PREFIX = '[SessionRecording]';
-var logger = (0, logger_1.createLogger)(LOGGER_PREFIX);
-var SessionRecording = /** @class */ (function () {
-    function SessionRecording(_instance) {
+        if (this._receivedFlags && !this._isRecordingEnabled) {
+            return DISABLED;
+        }
+        return LAZY_LOADING;
+    }
+    constructor(_instance) {
         this._instance = _instance;
         this._forceAllowLocalhostNetworkCapture = false;
         this._receivedFlags = false;
@@ -33,43 +36,14 @@ var SessionRecording = /** @class */ (function () {
             throw new Error(LOGGER_PREFIX + ' cannot be used with cookieless_mode="always"');
         }
     }
-    Object.defineProperty(SessionRecording.prototype, "started", {
-        get: function () {
-            var _a;
-            return !!((_a = this._lazyLoadedSessionRecording) === null || _a === void 0 ? void 0 : _a.isStarted);
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(SessionRecording.prototype, "status", {
-        /**
-         * defaults to buffering mode until a flags response is received
-         * once a flags response is received status can be disabled, active or sampled
-         */
-        get: function () {
-            if (this._lazyLoadedSessionRecording) {
-                return this._lazyLoadedSessionRecording.status;
-            }
-            if (this._receivedFlags && !this._isRecordingEnabled) {
-                return triggerMatching_1.DISABLED;
-            }
-            return triggerMatching_1.LAZY_LOADING;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(SessionRecording.prototype, "_isRecordingEnabled", {
-        get: function () {
-            var _a;
-            var enabled_server_side = !!((_a = this._instance.get_property(constants_1.SESSION_RECORDING_REMOTE_CONFIG)) === null || _a === void 0 ? void 0 : _a.enabled);
-            var enabled_client_side = !this._instance.config.disable_session_recording;
-            var isDisabled = this._instance.config.disable_session_recording || this._instance.consent.isOptedOut();
-            return globals_1.window && enabled_server_side && enabled_client_side && !isDisabled;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    SessionRecording.prototype.startIfEnabledOrStop = function (startReason) {
+    get _isRecordingEnabled() {
+        var _a;
+        const enabled_server_side = !!((_a = this._instance.get_property(SESSION_RECORDING_REMOTE_CONFIG)) === null || _a === void 0 ? void 0 : _a.enabled);
+        const enabled_client_side = !this._instance.config.disable_session_recording;
+        const isDisabled = this._instance.config.disable_session_recording || this._instance.consent.isOptedOut();
+        return window && enabled_server_side && enabled_client_side && !isDisabled;
+    }
+    startIfEnabledOrStop(startReason) {
         var _a;
         if (this._isRecordingEnabled && ((_a = this._lazyLoadedSessionRecording) === null || _a === void 0 ? void 0 : _a.isStarted)) {
             return;
@@ -81,7 +55,7 @@ var SessionRecording = /** @class */ (function () {
         // However, MutationObserver does exist on IE11, it just doesn't work well and does not detect all changes.
         // Instead, when we load "recorder.js", the first JS error is about "Object.assign" and "Array.from" being undefined.
         // Thus instead of MutationObserver, we look for this function and block recording if it's undefined.
-        var canRunReplay = !(0, core_1.isUndefined)(Object.assign) && !(0, core_1.isUndefined)(Array.from);
+        const canRunReplay = !isUndefined(Object.assign) && !isUndefined(Array.from);
         if (this._isRecordingEnabled && canRunReplay) {
             this._lazyLoadAndStart(startReason);
             logger.info('starting');
@@ -89,15 +63,14 @@ var SessionRecording = /** @class */ (function () {
         else {
             this.stopRecording();
         }
-    };
+    }
     /**
      * session recording waits until it receives remote config before loading the script
      * this is to ensure we can control the script name remotely
      * and because we wait until we have local and remote config to determine if we should start at all
      * if start is called and there is no remote config then we wait until there is
      */
-    SessionRecording.prototype._lazyLoadAndStart = function (startReason) {
-        var _this = this;
+    _lazyLoadAndStart(startReason) {
         var _a, _b, _c, _d, _e;
         // by checking `_isRecordingEnabled` here we know that
         // we have stored remote config and client config to read
@@ -107,52 +80,64 @@ var SessionRecording = /** @class */ (function () {
         }
         // If recorder.js is already loaded (if array.full.js snippet is used or posthog-js/dist/recorder is
         // imported), don't load the script. Otherwise, remotely import recorder.js from cdn since it hasn't been loaded.
-        if (!((_b = (_a = globals_1.assignableWindow === null || globals_1.assignableWindow === void 0 ? void 0 : globals_1.assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.rrweb) === null || _b === void 0 ? void 0 : _b.record) ||
-            !((_c = globals_1.assignableWindow.__PosthogExtensions__) === null || _c === void 0 ? void 0 : _c.initSessionRecording)) {
-            (_e = (_d = globals_1.assignableWindow.__PosthogExtensions__) === null || _d === void 0 ? void 0 : _d.loadExternalDependency) === null || _e === void 0 ? void 0 : _e.call(_d, this._instance, this._scriptName, function (err) {
+        if (!((_b = (_a = assignableWindow === null || assignableWindow === void 0 ? void 0 : assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.rrweb) === null || _b === void 0 ? void 0 : _b.record) ||
+            !((_c = assignableWindow.__PosthogExtensions__) === null || _c === void 0 ? void 0 : _c.initSessionRecording)) {
+            (_e = (_d = assignableWindow.__PosthogExtensions__) === null || _d === void 0 ? void 0 : _d.loadExternalDependency) === null || _e === void 0 ? void 0 : _e.call(_d, this._instance, this._scriptName, (err) => {
                 if (err) {
                     return logger.error('could not load recorder', err);
                 }
-                _this._onScriptLoaded(startReason);
+                this._onScriptLoaded(startReason);
             });
         }
         else {
             this._onScriptLoaded(startReason);
         }
-    };
-    SessionRecording.prototype.stopRecording = function () {
+    }
+    stopRecording() {
         var _a, _b;
         (_a = this._persistFlagsOnSessionListener) === null || _a === void 0 ? void 0 : _a.call(this);
         this._persistFlagsOnSessionListener = undefined;
         (_b = this._lazyLoadedSessionRecording) === null || _b === void 0 ? void 0 : _b.stop();
-    };
-    SessionRecording.prototype._resetSampling = function () {
+    }
+    _resetSampling() {
         var _a;
-        (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.unregister(constants_1.SESSION_RECORDING_IS_SAMPLED);
-    };
-    SessionRecording.prototype._persistRemoteConfig = function (response) {
-        var _this = this;
+        (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.unregister(SESSION_RECORDING_IS_SAMPLED);
+    }
+    _persistRemoteConfig(response) {
         var _a, _b;
         if (this._instance.persistence) {
-            var persistence_1 = this._instance.persistence;
-            var persistResponse = function () {
-                var _a;
-                var sessionRecordingConfigResponse = response.sessionRecording === false ? undefined : response.sessionRecording;
-                var receivedSampleRate = sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.sampleRate;
-                var parsedSampleRate = (0, core_1.isNullish)(receivedSampleRate) ? null : parseFloat(receivedSampleRate);
-                if ((0, core_1.isNullish)(parsedSampleRate)) {
-                    _this._resetSampling();
+            const persistence = this._instance.persistence;
+            const persistResponse = () => {
+                const sessionRecordingConfigResponse = response.sessionRecording === false ? undefined : response.sessionRecording;
+                const receivedSampleRate = sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.sampleRate;
+                const parsedSampleRate = isNullish(receivedSampleRate) ? null : parseFloat(receivedSampleRate);
+                if (isNullish(parsedSampleRate)) {
+                    this._resetSampling();
                 }
-                var receivedMinimumDuration = sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.minimumDurationMilliseconds;
-                persistence_1.register((_a = {},
-                    _a[constants_1.SESSION_RECORDING_REMOTE_CONFIG] = __assign(__assign({ enabled: !!sessionRecordingConfigResponse }, sessionRecordingConfigResponse), { networkPayloadCapture: __assign({ capturePerformance: response.capturePerformance }, sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.networkPayloadCapture), canvasRecording: {
+                const receivedMinimumDuration = sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.minimumDurationMilliseconds;
+                persistence.register({
+                    [SESSION_RECORDING_REMOTE_CONFIG]: {
+                        enabled: !!sessionRecordingConfigResponse,
+                        ...sessionRecordingConfigResponse,
+                        networkPayloadCapture: {
+                            capturePerformance: response.capturePerformance,
+                            ...sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.networkPayloadCapture,
+                        },
+                        canvasRecording: {
                             enabled: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.recordCanvas,
                             fps: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.canvasFps,
                             quality: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.canvasQuality,
-                        }, sampleRate: parsedSampleRate, minimumDurationMilliseconds: (0, core_1.isUndefined)(receivedMinimumDuration)
+                        },
+                        sampleRate: parsedSampleRate,
+                        minimumDurationMilliseconds: isUndefined(receivedMinimumDuration)
                             ? null
-                            : receivedMinimumDuration, endpoint: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.endpoint, triggerMatchType: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.triggerMatchType, masking: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.masking, urlTriggers: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.urlTriggers }),
-                    _a));
+                            : receivedMinimumDuration,
+                        endpoint: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.endpoint,
+                        triggerMatchType: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.triggerMatchType,
+                        masking: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.masking,
+                        urlTriggers: sessionRecordingConfigResponse === null || sessionRecordingConfigResponse === void 0 ? void 0 : sessionRecordingConfigResponse.urlTriggers,
+                    },
+                });
             };
             persistResponse();
             // in case we see multiple flags responses, we should only use the response from the most recent one
@@ -160,8 +145,8 @@ var SessionRecording = /** @class */ (function () {
             // we 100% know there is a session manager by this point
             this._persistFlagsOnSessionListener = (_b = this._instance.sessionManager) === null || _b === void 0 ? void 0 : _b.onSessionId(persistResponse);
         }
-    };
-    SessionRecording.prototype.onRemoteConfig = function (response) {
+    }
+    onRemoteConfig(response) {
         if (!('sessionRecording' in response)) {
             // if sessionRecording is not in the response, we do nothing
             logger.info('skipping remote config with no sessionRecording', response);
@@ -175,112 +160,100 @@ var SessionRecording = /** @class */ (function () {
         this._persistRemoteConfig(response);
         this._receivedFlags = true;
         this.startIfEnabledOrStop();
-    };
-    SessionRecording.prototype.log = function (message, level) {
+    }
+    log(message, level = 'log') {
         var _a;
-        if (level === void 0) { level = 'log'; }
         if ((_a = this._lazyLoadedSessionRecording) === null || _a === void 0 ? void 0 : _a.log) {
             this._lazyLoadedSessionRecording.log(message, level);
         }
         else {
             logger.warn('log called before recorder was ready');
         }
-    };
-    Object.defineProperty(SessionRecording.prototype, "_scriptName", {
-        get: function () {
-            var _a, _b, _c;
-            var remoteConfig = (_b = (_a = this._instance) === null || _a === void 0 ? void 0 : _a.persistence) === null || _b === void 0 ? void 0 : _b.get_property(constants_1.SESSION_RECORDING_REMOTE_CONFIG);
-            return ((_c = remoteConfig === null || remoteConfig === void 0 ? void 0 : remoteConfig.scriptConfig) === null || _c === void 0 ? void 0 : _c.script) || 'lazy-recorder';
-        },
-        enumerable: false,
-        configurable: true
-    });
-    SessionRecording.prototype._onScriptLoaded = function (startReason) {
+    }
+    get _scriptName() {
+        var _a, _b, _c;
+        const remoteConfig = (_b = (_a = this._instance) === null || _a === void 0 ? void 0 : _a.persistence) === null || _b === void 0 ? void 0 : _b.get_property(SESSION_RECORDING_REMOTE_CONFIG);
+        return ((_c = remoteConfig === null || remoteConfig === void 0 ? void 0 : remoteConfig.scriptConfig) === null || _c === void 0 ? void 0 : _c.script) || 'lazy-recorder';
+    }
+    _onScriptLoaded(startReason) {
         var _a, _b;
-        if (!((_a = globals_1.assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.initSessionRecording)) {
+        if (!((_a = assignableWindow.__PosthogExtensions__) === null || _a === void 0 ? void 0 : _a.initSessionRecording)) {
             throw Error('Called on script loaded before session recording is available');
         }
         if (!this._lazyLoadedSessionRecording) {
-            this._lazyLoadedSessionRecording = (_b = globals_1.assignableWindow.__PosthogExtensions__) === null || _b === void 0 ? void 0 : _b.initSessionRecording(this._instance);
+            this._lazyLoadedSessionRecording = (_b = assignableWindow.__PosthogExtensions__) === null || _b === void 0 ? void 0 : _b.initSessionRecording(this._instance);
             this._lazyLoadedSessionRecording._forceAllowLocalhostNetworkCapture =
                 this._forceAllowLocalhostNetworkCapture;
         }
         this._lazyLoadedSessionRecording.start(startReason);
-    };
+    }
     /**
      * this is maintained on the public API only because it has always been on the public API
      * if you are calling this directly you are certainly doing something wrong
      * @deprecated
      */
-    SessionRecording.prototype.onRRwebEmit = function (rawEvent) {
+    onRRwebEmit(rawEvent) {
         var _a, _b;
         (_b = (_a = this._lazyLoadedSessionRecording) === null || _a === void 0 ? void 0 : _a.onRRwebEmit) === null || _b === void 0 ? void 0 : _b.call(_a, rawEvent);
-    };
+    }
     /**
      * this ignores the linked flag config and (if other conditions are met) causes capture to start
      *
      * It is not usual to call this directly,
      * instead call `posthog.startSessionRecording({linked_flag: true})`
      * */
-    SessionRecording.prototype.overrideLinkedFlag = function () {
-        var _a;
-        var _b, _c;
+    overrideLinkedFlag() {
+        var _a, _b;
         if (!this._lazyLoadedSessionRecording) {
-            (_b = this._instance.persistence) === null || _b === void 0 ? void 0 : _b.register((_a = {},
-                _a[constants_1.SESSION_RECORDING_OVERRIDE_LINKED_FLAG] = true,
-                _a));
+            (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.register({
+                [SESSION_RECORDING_OVERRIDE_LINKED_FLAG]: true,
+            });
         }
-        (_c = this._lazyLoadedSessionRecording) === null || _c === void 0 ? void 0 : _c.overrideLinkedFlag();
-    };
+        (_b = this._lazyLoadedSessionRecording) === null || _b === void 0 ? void 0 : _b.overrideLinkedFlag();
+    }
     /**
      * this ignores the sampling config and (if other conditions are met) causes capture to start
      *
      * It is not usual to call this directly,
      * instead call `posthog.startSessionRecording({sampling: true})`
      * */
-    SessionRecording.prototype.overrideSampling = function () {
-        var _a;
-        var _b, _c;
+    overrideSampling() {
+        var _a, _b;
         if (!this._lazyLoadedSessionRecording) {
-            (_b = this._instance.persistence) === null || _b === void 0 ? void 0 : _b.register((_a = {},
-                _a[constants_1.SESSION_RECORDING_OVERRIDE_SAMPLING] = true,
-                _a));
+            (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.register({
+                [SESSION_RECORDING_OVERRIDE_SAMPLING]: true,
+            });
         }
-        (_c = this._lazyLoadedSessionRecording) === null || _c === void 0 ? void 0 : _c.overrideSampling();
-    };
+        (_b = this._lazyLoadedSessionRecording) === null || _b === void 0 ? void 0 : _b.overrideSampling();
+    }
     /**
      * this ignores the URL/Event trigger config and (if other conditions are met) causes capture to start
      *
      * It is not usual to call this directly,
      * instead call `posthog.startSessionRecording({trigger: 'url' | 'event'})`
      * */
-    SessionRecording.prototype.overrideTrigger = function (triggerType) {
-        var _a;
-        var _b, _c;
+    overrideTrigger(triggerType) {
+        var _a, _b;
         if (!this._lazyLoadedSessionRecording) {
-            (_b = this._instance.persistence) === null || _b === void 0 ? void 0 : _b.register((_a = {},
-                _a[triggerType === 'url'
-                    ? constants_1.SESSION_RECORDING_OVERRIDE_URL_TRIGGER
-                    : constants_1.SESSION_RECORDING_OVERRIDE_EVENT_TRIGGER] = true,
-                _a));
-        }
-        (_c = this._lazyLoadedSessionRecording) === null || _c === void 0 ? void 0 : _c.overrideTrigger(triggerType);
-    };
-    Object.defineProperty(SessionRecording.prototype, "sdkDebugProperties", {
-        /*
-         * whenever we capture an event, we add these properties to the event
-         * these are used to debug issues with the session recording
-         * when looking at the event feed for a session
-         */
-        get: function () {
-            var _a;
-            return (((_a = this._lazyLoadedSessionRecording) === null || _a === void 0 ? void 0 : _a.sdkDebugProperties) || {
-                $recording_status: this.status,
+            (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.register({
+                [triggerType === 'url'
+                    ? SESSION_RECORDING_OVERRIDE_URL_TRIGGER
+                    : SESSION_RECORDING_OVERRIDE_EVENT_TRIGGER]: true,
             });
-        },
-        enumerable: false,
-        configurable: true
-    });
+        }
+        (_b = this._lazyLoadedSessionRecording) === null || _b === void 0 ? void 0 : _b.overrideTrigger(triggerType);
+    }
+    /*
+     * whenever we capture an event, we add these properties to the event
+     * these are used to debug issues with the session recording
+     * when looking at the event feed for a session
+     */
+    get sdkDebugProperties() {
+        var _a;
+        return (((_a = this._lazyLoadedSessionRecording) === null || _a === void 0 ? void 0 : _a.sdkDebugProperties) || {
+            $recording_status: this.status,
+        });
+    }
     /**
      * This adds a custom event to the session recording
      *
@@ -289,11 +262,8 @@ var SessionRecording = /** @class */ (function () {
      *
      * if you are calling this from client code, you're probably looking for `posthog.capture('$custom_event', {...})`
      */
-    SessionRecording.prototype.tryAddCustomEvent = function (tag, payload) {
+    tryAddCustomEvent(tag, payload) {
         var _a;
         return !!((_a = this._lazyLoadedSessionRecording) === null || _a === void 0 ? void 0 : _a.tryAddCustomEvent(tag, payload));
-    };
-    return SessionRecording;
-}());
-exports.SessionRecording = SessionRecording;
-//# sourceMappingURL=session-recording.js.map
+    }
+}

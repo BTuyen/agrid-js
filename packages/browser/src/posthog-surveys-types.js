@@ -1,18 +1,15 @@
-"use strict";
 /**
  * Having Survey types in types.ts was confusing tsc
  * and generating an invalid module.d.ts
  * See https://github.com/PostHog/posthog-js/issues/698
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.DisplaySurveyType = exports.SurveyEventProperties = exports.SurveyEventName = exports.SurveySchedule = exports.SurveyQuestionBranchingType = exports.SurveyQuestionType = exports.SurveyType = exports.SurveyPosition = exports.SurveyWidgetType = void 0;
-var SurveyWidgetType;
+export var SurveyWidgetType;
 (function (SurveyWidgetType) {
     SurveyWidgetType["Button"] = "button";
     SurveyWidgetType["Tab"] = "tab";
     SurveyWidgetType["Selector"] = "selector";
-})(SurveyWidgetType || (exports.SurveyWidgetType = SurveyWidgetType = {}));
-var SurveyPosition;
+})(SurveyWidgetType || (SurveyWidgetType = {}));
+export var SurveyPosition;
 (function (SurveyPosition) {
     SurveyPosition["TopLeft"] = "top_left";
     SurveyPosition["TopRight"] = "top_right";
@@ -24,42 +21,42 @@ var SurveyPosition;
     SurveyPosition["Center"] = "center";
     SurveyPosition["Right"] = "right";
     SurveyPosition["NextToTrigger"] = "next_to_trigger";
-})(SurveyPosition || (exports.SurveyPosition = SurveyPosition = {}));
-var SurveyType;
+})(SurveyPosition || (SurveyPosition = {}));
+export var SurveyType;
 (function (SurveyType) {
     SurveyType["Popover"] = "popover";
     SurveyType["API"] = "api";
     SurveyType["Widget"] = "widget";
     SurveyType["ExternalSurvey"] = "external_survey";
-})(SurveyType || (exports.SurveyType = SurveyType = {}));
-var SurveyQuestionType;
+})(SurveyType || (SurveyType = {}));
+export var SurveyQuestionType;
 (function (SurveyQuestionType) {
     SurveyQuestionType["Open"] = "open";
     SurveyQuestionType["MultipleChoice"] = "multiple_choice";
     SurveyQuestionType["SingleChoice"] = "single_choice";
     SurveyQuestionType["Rating"] = "rating";
     SurveyQuestionType["Link"] = "link";
-})(SurveyQuestionType || (exports.SurveyQuestionType = SurveyQuestionType = {}));
-var SurveyQuestionBranchingType;
+})(SurveyQuestionType || (SurveyQuestionType = {}));
+export var SurveyQuestionBranchingType;
 (function (SurveyQuestionBranchingType) {
     SurveyQuestionBranchingType["NextQuestion"] = "next_question";
     SurveyQuestionBranchingType["End"] = "end";
     SurveyQuestionBranchingType["ResponseBased"] = "response_based";
     SurveyQuestionBranchingType["SpecificQuestion"] = "specific_question";
-})(SurveyQuestionBranchingType || (exports.SurveyQuestionBranchingType = SurveyQuestionBranchingType = {}));
-var SurveySchedule;
+})(SurveyQuestionBranchingType || (SurveyQuestionBranchingType = {}));
+export var SurveySchedule;
 (function (SurveySchedule) {
     SurveySchedule["Once"] = "once";
     SurveySchedule["Recurring"] = "recurring";
     SurveySchedule["Always"] = "always";
-})(SurveySchedule || (exports.SurveySchedule = SurveySchedule = {}));
-var SurveyEventName;
+})(SurveySchedule || (SurveySchedule = {}));
+export var SurveyEventName;
 (function (SurveyEventName) {
     SurveyEventName["SHOWN"] = "survey shown";
     SurveyEventName["DISMISSED"] = "survey dismissed";
     SurveyEventName["SENT"] = "survey sent";
-})(SurveyEventName || (exports.SurveyEventName = SurveyEventName = {}));
-var SurveyEventProperties;
+})(SurveyEventName || (SurveyEventName = {}));
+export var SurveyEventProperties;
 (function (SurveyEventProperties) {
     SurveyEventProperties["SURVEY_ID"] = "$survey_id";
     SurveyEventProperties["SURVEY_NAME"] = "$survey_name";
@@ -70,10 +67,9 @@ var SurveyEventProperties;
     SurveyEventProperties["SURVEY_SUBMISSION_ID"] = "$survey_submission_id";
     SurveyEventProperties["SURVEY_QUESTIONS"] = "$survey_questions";
     SurveyEventProperties["SURVEY_COMPLETED"] = "$survey_completed";
-})(SurveyEventProperties || (exports.SurveyEventProperties = SurveyEventProperties = {}));
-var DisplaySurveyType;
+})(SurveyEventProperties || (SurveyEventProperties = {}));
+export var DisplaySurveyType;
 (function (DisplaySurveyType) {
     DisplaySurveyType["Popover"] = "popover";
     DisplaySurveyType["Inline"] = "inline";
-})(DisplaySurveyType || (exports.DisplaySurveyType = DisplaySurveyType = {}));
-//# sourceMappingURL=posthog-surveys-types.js.map
+})(DisplaySurveyType || (DisplaySurveyType = {}));

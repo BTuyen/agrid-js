@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.window = exports.assignableWindow = exports.userAgent = exports.AbortController = exports.XMLHttpRequest = exports.fetch = exports.location = exports.document = exports.navigator = exports.nativeIndexOf = exports.nativeForEach = exports.ArrayProto = void 0;
 /*
  * Global helpers to protect access to browser globals in a way that is safer for different targets
  * like DOM, SSR, Web workers etc.
@@ -11,18 +8,17 @@ exports.window = exports.assignableWindow = exports.userAgent = exports.AbortCon
  * to handle the case where the global is not available.
  */
 // eslint-disable-next-line no-restricted-globals
-var win = typeof window !== 'undefined' ? window : undefined;
-exports.window = win;
-var global = typeof globalThis !== 'undefined' ? globalThis : win;
-exports.ArrayProto = Array.prototype;
-exports.nativeForEach = exports.ArrayProto.forEach;
-exports.nativeIndexOf = exports.ArrayProto.indexOf;
-exports.navigator = global === null || global === void 0 ? void 0 : global.navigator;
-exports.document = global === null || global === void 0 ? void 0 : global.document;
-exports.location = global === null || global === void 0 ? void 0 : global.location;
-exports.fetch = global === null || global === void 0 ? void 0 : global.fetch;
-exports.XMLHttpRequest = (global === null || global === void 0 ? void 0 : global.XMLHttpRequest) && 'withCredentials' in new global.XMLHttpRequest() ? global.XMLHttpRequest : undefined;
-exports.AbortController = global === null || global === void 0 ? void 0 : global.AbortController;
-exports.userAgent = exports.navigator === null || exports.navigator === void 0 ? void 0 : exports.navigator.userAgent;
-exports.assignableWindow = win !== null && win !== void 0 ? win : {};
-//# sourceMappingURL=globals.js.map
+const win = typeof window !== 'undefined' ? window : undefined;
+const global = typeof globalThis !== 'undefined' ? globalThis : win;
+export const ArrayProto = Array.prototype;
+export const nativeForEach = ArrayProto.forEach;
+export const nativeIndexOf = ArrayProto.indexOf;
+export const navigator = global === null || global === void 0 ? void 0 : global.navigator;
+export const document = global === null || global === void 0 ? void 0 : global.document;
+export const location = global === null || global === void 0 ? void 0 : global.location;
+export const fetch = global === null || global === void 0 ? void 0 : global.fetch;
+export const XMLHttpRequest = (global === null || global === void 0 ? void 0 : global.XMLHttpRequest) && 'withCredentials' in new global.XMLHttpRequest() ? global.XMLHttpRequest : undefined;
+export const AbortController = global === null || global === void 0 ? void 0 : global.AbortController;
+export const userAgent = navigator === null || navigator === void 0 ? void 0 : navigator.userAgent;
+export const assignableWindow = win !== null && win !== void 0 ? win : {};
+export { win as window };

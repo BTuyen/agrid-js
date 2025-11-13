@@ -1,106 +1,51 @@
-"use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __read = (this && this.__read) || function (o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-};
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PostHog = exports.configRenames = exports.defaultConfig = void 0;
-exports.init_from_snippet = init_from_snippet;
-exports.init_as_module = init_as_module;
-var autocapture_1 = require("./autocapture");
-var config_1 = __importDefault(require("./config"));
-var consent_1 = require("./consent");
-var constants_1 = require("./constants");
-var dead_clicks_autocapture_1 = require("./extensions/dead-clicks-autocapture");
-var exception_autocapture_1 = require("./extensions/exception-autocapture");
-var history_autocapture_1 = require("./extensions/history-autocapture");
-var segment_integration_1 = require("./extensions/segment-integration");
-var sentry_integration_1 = require("./extensions/sentry-integration");
-var toolbar_1 = require("./extensions/toolbar");
-var tracing_headers_1 = require("./extensions/tracing-headers");
-var web_vitals_1 = require("./extensions/web-vitals");
-var heatmaps_1 = require("./heatmaps");
-var page_view_1 = require("./page-view");
-var posthog_exceptions_1 = require("./posthog-exceptions");
-var posthog_featureflags_1 = require("./posthog-featureflags");
-var posthog_persistence_1 = require("./posthog-persistence");
-var posthog_surveys_1 = require("./posthog-surveys");
-var posthog_surveys_types_1 = require("./posthog-surveys-types");
-var rate_limiter_1 = require("./rate-limiter");
-var remote_config_1 = require("./remote-config");
-var request_1 = require("./request");
-var request_queue_1 = require("./request-queue");
-var retry_queue_1 = require("./retry-queue");
-var scroll_manager_1 = require("./scroll-manager");
-var session_props_1 = require("./session-props");
-var sessionid_1 = require("./sessionid");
-var site_apps_1 = require("./site-apps");
-var storage_1 = require("./storage");
-var types_1 = require("./types");
-var utils_1 = require("./utils");
-var blocked_uas_1 = require("./utils/blocked-uas");
-var event_utils_1 = require("./utils/event-utils");
-var globals_1 = require("./utils/globals");
-var logger_1 = require("./utils/logger");
-var property_utils_1 = require("./utils/property-utils");
-var request_router_1 = require("./utils/request-router");
-var simple_event_emitter_1 = require("./utils/simple-event-emitter");
-var survey_utils_1 = require("./utils/survey-utils");
-var core_1 = require("@agrid/core");
-var uuidv7_1 = require("./uuidv7");
-var web_experiments_1 = require("./web-experiments");
-var external_integration_1 = require("./extensions/external-integration");
-var session_recording_1 = require("./extensions/replay/session-recording");
-var instances = {};
+import { Autocapture } from './autocapture';
+import Config from './config';
+import { ConsentManager, ConsentStatus } from './consent';
+import { ALIAS_ID_KEY, COOKIELESS_MODE_FLAG_PROPERTY, COOKIELESS_SENTINEL_VALUE, ENABLE_PERSON_PROCESSING, FLAG_CALL_REPORTED, PEOPLE_DISTINCT_ID_KEY, SURVEYS_REQUEST_TIMEOUT_MS, USER_STATE, } from './constants';
+import { DeadClicksAutocapture, isDeadClicksEnabledForAutocapture } from './extensions/dead-clicks-autocapture';
+import { ExceptionObserver } from './extensions/exception-autocapture';
+import { HistoryAutocapture } from './extensions/history-autocapture';
+import { setupSegmentIntegration } from './extensions/segment-integration';
+import { SentryIntegration, sentryIntegration } from './extensions/sentry-integration';
+import { Toolbar } from './extensions/toolbar';
+import { TracingHeaders } from './extensions/tracing-headers';
+import { WebVitalsAutocapture } from './extensions/web-vitals';
+import { Heatmaps } from './heatmaps';
+import { PageViewManager } from './page-view';
+import { PostHogExceptions } from './posthog-exceptions';
+import { PostHogFeatureFlags } from './posthog-featureflags';
+import { PostHogPersistence } from './posthog-persistence';
+import { PostHogSurveys } from './posthog-surveys';
+import { SurveyEventName, SurveyEventProperties, } from './posthog-surveys-types';
+import { RateLimiter } from './rate-limiter';
+import { RemoteConfigLoader } from './remote-config';
+import { extendURLParams, request, SUPPORTS_REQUEST } from './request';
+import { DEFAULT_FLUSH_INTERVAL_MS, RequestQueue } from './request-queue';
+import { RetryQueue } from './retry-queue';
+import { ScrollManager } from './scroll-manager';
+import { SessionPropsManager } from './session-props';
+import { SessionIdManager } from './sessionid';
+import { SiteApps } from './site-apps';
+import { localStore } from './storage';
+import { Compression, } from './types';
+import { _copyAndTruncateStrings, addEventListener, each, eachArray, extend, isCrossDomainCookie, migrateConfigField, safewrapClass, } from './utils';
+import { isLikelyBot } from './utils/blocked-uas';
+import { getEventProperties } from './utils/event-utils';
+import { assignableWindow, document, location, navigator, userAgent, window } from './utils/globals';
+import { logger } from './utils/logger';
+import { getPersonPropertiesHash } from './utils/property-utils';
+import { RequestRouter, RequestRouterRegion } from './utils/request-router';
+import { SimpleEventEmitter } from './utils/simple-event-emitter';
+import { DEFAULT_DISPLAY_SURVEY_OPTIONS, getSurveyInteractionProperty, setSurveySeenOnLocalStorage, } from './utils/survey-utils';
+import { isEmptyString, isFunction, isKnownUnsafeEditableEvent, isNullish, isNumber, isString, isUndefined, includes, isDistinctIdStringLike, isArray, isEmptyObject, isObject, isBoolean, } from '@agrid/core';
+import { uuidv7 } from './uuidv7';
+import { WebExperiments } from './web-experiments';
+import { ExternalIntegrations } from './extensions/external-integration';
+import { SessionRecording } from './extensions/replay/session-recording';
+const instances = {};
 // some globals for comparisons
-var __NOOP = function () { };
-var PRIMARY_INSTANCE_NAME = 'posthog';
+const __NOOP = () => { };
+const PRIMARY_INSTANCE_NAME = 'posthog';
 /*
  * Dynamic... constants? Is that an oxymoron?
  */
@@ -109,11 +54,11 @@ var PRIMARY_INSTANCE_NAME = 'posthog';
 // IE<10 does not support cross-origin XHR's but script tags
 // with defer won't block window.onload; ENQUEUE_REQUESTS
 // should only be true for Opera<12
-var ENQUEUE_REQUESTS = !request_1.SUPPORTS_REQUEST && (globals_1.userAgent === null || globals_1.userAgent === void 0 ? void 0 : globals_1.userAgent.indexOf('MSIE')) === -1 && (globals_1.userAgent === null || globals_1.userAgent === void 0 ? void 0 : globals_1.userAgent.indexOf('Mozilla')) === -1;
+let ENQUEUE_REQUESTS = !SUPPORTS_REQUEST && (userAgent === null || userAgent === void 0 ? void 0 : userAgent.indexOf('MSIE')) === -1 && (userAgent === null || userAgent === void 0 ? void 0 : userAgent.indexOf('Mozilla')) === -1;
 // NOTE: Remember to update `types.ts` when changing a default value
 // to guarantee documentation is up to date, make sure to also update our website docs
 // NOTE²: This shouldn't ever change because we try very hard to be backwards-compatible
-var defaultConfig = function (defaults) {
+export const defaultConfig = (defaults) => {
     var _a;
     return ({
         api_host: 'https://us.i.posthog.com',
@@ -122,7 +67,7 @@ var defaultConfig = function (defaults) {
         token: '',
         autocapture: true,
         rageclick: true,
-        cross_subdomain_cookie: (0, utils_1.isCrossDomainCookie)(globals_1.document === null || globals_1.document === void 0 ? void 0 : globals_1.document.location),
+        cross_subdomain_cookie: isCrossDomainCookie(document === null || document === void 0 ? void 0 : document.location),
         persistence: 'localStorage+cookie', // up to 1.92.0 this was 'cookie'. It's easy to migrate as 'localStorage+cookie' will migrate data from cookie storage
         persistence_name: '',
         loaded: __NOOP,
@@ -134,7 +79,7 @@ var defaultConfig = function (defaults) {
         capture_pageleave: 'if_capture_pageview', // We'll only capture pageleave events if capture_pageview is also true
         defaults: defaults !== null && defaults !== void 0 ? defaults : 'unset',
         __preview_deferred_init_extensions: false, // Opt-in only for now
-        debug: (globals_1.location && (0, core_1.isString)(globals_1.location === null || globals_1.location === void 0 ? void 0 : globals_1.location.search) && globals_1.location.search.indexOf('__posthog_debug=true') !== -1) || false,
+        debug: (location && isString(location === null || location === void 0 ? void 0 : location.search) && location.search.indexOf('__posthog_debug=true') !== -1) || false,
         cookie_expiration: 365,
         upgrade: false,
         disable_session_recording: false,
@@ -144,7 +89,7 @@ var defaultConfig = function (defaults) {
         disable_surveys_automatic_display: false,
         disable_external_dependency_loading: false,
         enable_recording_console_log: undefined, // When undefined, it falls back to the server-side setting
-        secure_cookie: ((_a = globals_1.window === null || globals_1.window === void 0 ? void 0 : globals_1.window.location) === null || _a === void 0 ? void 0 : _a.protocol) === 'https:',
+        secure_cookie: ((_a = window === null || window === void 0 ? void 0 : window.location) === null || _a === void 0 ? void 0 : _a.protocol) === 'https:',
         ip: false,
         opt_out_capturing_by_default: false,
         opt_out_persistence_by_default: false,
@@ -172,12 +117,12 @@ var defaultConfig = function (defaults) {
         advanced_enable_surveys: false,
         advanced_disable_toolbar_metrics: false,
         feature_flag_request_timeout_ms: 3000,
-        surveys_request_timeout_ms: constants_1.SURVEYS_REQUEST_TIMEOUT_MS,
-        on_request_error: function (res) {
-            var error = 'Bad HTTP status: ' + res.statusCode + ' ' + res.text;
-            logger_1.logger.error(error);
+        surveys_request_timeout_ms: SURVEYS_REQUEST_TIMEOUT_MS,
+        on_request_error: (res) => {
+            const error = 'Bad HTTP status: ' + res.statusCode + ' ' + res.text;
+            logger.error(error);
         },
-        get_device_id: function (uuid) { return uuid; },
+        get_device_id: (uuid) => uuid,
         capture_performance: undefined,
         name: 'posthog',
         bootstrap: {},
@@ -185,7 +130,7 @@ var defaultConfig = function (defaults) {
         session_idle_timeout_seconds: 30 * 60, // 30 minutes
         person_profiles: 'identified_only',
         before_send: undefined,
-        request_queue_config: { flush_interval_ms: request_queue_1.DEFAULT_FLUSH_INTERVAL_MS },
+        request_queue_config: { flush_interval_ms: DEFAULT_FLUSH_INTERVAL_MS },
         error_tracking: {},
         // Used for internal testing
         _onCapture: __NOOP,
@@ -193,62 +138,55 @@ var defaultConfig = function (defaults) {
         __preview_eager_load_replay: false,
     });
 };
-exports.defaultConfig = defaultConfig;
-var configRenames = function (origConfig) {
-    var renames = {};
-    if (!(0, core_1.isUndefined)(origConfig.process_person)) {
+export const configRenames = (origConfig) => {
+    const renames = {};
+    if (!isUndefined(origConfig.process_person)) {
         renames.person_profiles = origConfig.process_person;
     }
-    if (!(0, core_1.isUndefined)(origConfig.xhr_headers)) {
+    if (!isUndefined(origConfig.xhr_headers)) {
         renames.request_headers = origConfig.xhr_headers;
     }
-    if (!(0, core_1.isUndefined)(origConfig.cookie_name)) {
+    if (!isUndefined(origConfig.cookie_name)) {
         renames.persistence_name = origConfig.cookie_name;
     }
-    if (!(0, core_1.isUndefined)(origConfig.disable_cookie)) {
+    if (!isUndefined(origConfig.disable_cookie)) {
         renames.disable_persistence = origConfig.disable_cookie;
     }
-    if (!(0, core_1.isUndefined)(origConfig.store_google)) {
+    if (!isUndefined(origConfig.store_google)) {
         renames.save_campaign_params = origConfig.store_google;
     }
-    if (!(0, core_1.isUndefined)(origConfig.verbose)) {
+    if (!isUndefined(origConfig.verbose)) {
         renames.debug = origConfig.verbose;
     }
     // on_xhr_error is not present, as the type is different to on_request_error
     // the original config takes priority over the renames
-    var newConfig = (0, utils_1.extend)({}, renames, origConfig);
+    const newConfig = extend({}, renames, origConfig);
     // merge property_blacklist into property_denylist
-    if ((0, core_1.isArray)(origConfig.property_blacklist)) {
-        if ((0, core_1.isUndefined)(origConfig.property_denylist)) {
+    if (isArray(origConfig.property_blacklist)) {
+        if (isUndefined(origConfig.property_denylist)) {
             newConfig.property_denylist = origConfig.property_blacklist;
         }
-        else if ((0, core_1.isArray)(origConfig.property_denylist)) {
-            newConfig.property_denylist = __spreadArray(__spreadArray([], __read(origConfig.property_blacklist), false), __read(origConfig.property_denylist), false);
+        else if (isArray(origConfig.property_denylist)) {
+            newConfig.property_denylist = [...origConfig.property_blacklist, ...origConfig.property_denylist];
         }
         else {
-            logger_1.logger.error('Invalid value for property_denylist config: ' + origConfig.property_denylist);
+            logger.error('Invalid value for property_denylist config: ' + origConfig.property_denylist);
         }
     }
     return newConfig;
 };
-exports.configRenames = configRenames;
-var DeprecatedWebPerformanceObserver = /** @class */ (function () {
-    function DeprecatedWebPerformanceObserver() {
+class DeprecatedWebPerformanceObserver {
+    constructor() {
         this.__forceAllowLocalhost = false;
     }
-    Object.defineProperty(DeprecatedWebPerformanceObserver.prototype, "_forceAllowLocalhost", {
-        get: function () {
-            return this.__forceAllowLocalhost;
-        },
-        set: function (value) {
-            logger_1.logger.error('WebPerformanceObserver is deprecated and has no impact on network capture. Use `_forceAllowLocalhostNetworkCapture` on `posthog.sessionRecording`');
-            this.__forceAllowLocalhost = value;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    return DeprecatedWebPerformanceObserver;
-}());
+    get _forceAllowLocalhost() {
+        return this.__forceAllowLocalhost;
+    }
+    set _forceAllowLocalhost(value) {
+        logger.error('WebPerformanceObserver is deprecated and has no impact on network capture. Use `_forceAllowLocalhostNetworkCapture` on `posthog.sessionRecording`');
+        this.__forceAllowLocalhost = value;
+    }
+}
 /**
  *
  * This is the SDK reference for the PostHog JavaScript Web SDK.
@@ -262,18 +200,27 @@ var DeprecatedWebPerformanceObserver = /** @class */ (function () {
  *
  * @constructor
  */
-var PostHog = /** @class */ (function () {
-    function PostHog() {
-        var _this = this;
+export class PostHog {
+    // Legacy property to support existing usage - this isn't technically correct but it's what it has always been - a proxy for flags being loaded
+    /** @deprecated Use `flagsEndpointWasHit` instead.  We migrated to using a new feature flag endpoint and the new method is more semantically accurate */
+    get decideEndpointWasHit() {
+        var _a, _b;
+        return (_b = (_a = this.featureFlags) === null || _a === void 0 ? void 0 : _a.hasLoadedFlags) !== null && _b !== void 0 ? _b : false;
+    }
+    get flagsEndpointWasHit() {
+        var _a, _b;
+        return (_b = (_a = this.featureFlags) === null || _a === void 0 ? void 0 : _a.hasLoadedFlags) !== null && _b !== void 0 ? _b : false;
+    }
+    constructor() {
         this.webPerformance = new DeprecatedWebPerformanceObserver();
         this._personProcessingSetOncePropertiesSent = false;
-        this.version = config_1.default.LIB_VERSION;
-        this._internalEventEmitter = new simple_event_emitter_1.SimpleEventEmitter();
+        this.version = Config.LIB_VERSION;
+        this._internalEventEmitter = new SimpleEventEmitter();
         /** @deprecated - deprecated in 1.241.0, use `calculateEventProperties` instead  */
         this._calculate_event_properties = this.calculateEventProperties.bind(this);
-        this.config = (0, exports.defaultConfig)();
-        this.SentryIntegration = sentry_integration_1.SentryIntegration;
-        this.sentryIntegration = function (options) { return (0, sentry_integration_1.sentryIntegration)(_this, options); };
+        this.config = defaultConfig();
+        this.SentryIntegration = SentryIntegration;
+        this.sentryIntegration = (options) => sentryIntegration(this, options);
         this.__request_queue = [];
         this.__loaded = false;
         this.analyticsDefaultEndpoint = '/e/';
@@ -281,52 +228,32 @@ var PostHog = /** @class */ (function () {
         this._visibilityStateListener = null;
         this._initialPersonProfilesConfig = null;
         this._cachedPersonProperties = null;
-        this.featureFlags = new posthog_featureflags_1.PostHogFeatureFlags(this);
-        this.toolbar = new toolbar_1.Toolbar(this);
-        this.scrollManager = new scroll_manager_1.ScrollManager(this);
-        this.pageViewManager = new page_view_1.PageViewManager(this);
-        this.surveys = new posthog_surveys_1.PostHogSurveys(this);
-        this.experiments = new web_experiments_1.WebExperiments(this);
-        this.exceptions = new posthog_exceptions_1.PostHogExceptions(this);
-        this.rateLimiter = new rate_limiter_1.RateLimiter(this);
-        this.requestRouter = new request_router_1.RequestRouter(this);
-        this.consent = new consent_1.ConsentManager(this);
-        this.externalIntegrations = new external_integration_1.ExternalIntegrations(this);
+        this.featureFlags = new PostHogFeatureFlags(this);
+        this.toolbar = new Toolbar(this);
+        this.scrollManager = new ScrollManager(this);
+        this.pageViewManager = new PageViewManager(this);
+        this.surveys = new PostHogSurveys(this);
+        this.experiments = new WebExperiments(this);
+        this.exceptions = new PostHogExceptions(this);
+        this.rateLimiter = new RateLimiter(this);
+        this.requestRouter = new RequestRouter(this);
+        this.consent = new ConsentManager(this);
+        this.externalIntegrations = new ExternalIntegrations(this);
         // NOTE: See the property definition for deprecation notice
         this.people = {
-            set: function (prop, to, callback) {
-                var _a;
-                var setProps = (0, core_1.isString)(prop) ? (_a = {}, _a[prop] = to, _a) : prop;
-                _this.setPersonProperties(setProps);
+            set: (prop, to, callback) => {
+                const setProps = isString(prop) ? { [prop]: to } : prop;
+                this.setPersonProperties(setProps);
                 callback === null || callback === void 0 ? void 0 : callback({});
             },
-            set_once: function (prop, to, callback) {
-                var _a;
-                var setProps = (0, core_1.isString)(prop) ? (_a = {}, _a[prop] = to, _a) : prop;
-                _this.setPersonProperties(undefined, setProps);
+            set_once: (prop, to, callback) => {
+                const setProps = isString(prop) ? { [prop]: to } : prop;
+                this.setPersonProperties(undefined, setProps);
                 callback === null || callback === void 0 ? void 0 : callback({});
             },
         };
-        this.on('eventCaptured', function (data) { return logger_1.logger.info("send \"".concat(data === null || data === void 0 ? void 0 : data.event, "\""), data); });
+        this.on('eventCaptured', (data) => logger.info(`send "${data === null || data === void 0 ? void 0 : data.event}"`, data));
     }
-    Object.defineProperty(PostHog.prototype, "decideEndpointWasHit", {
-        // Legacy property to support existing usage - this isn't technically correct but it's what it has always been - a proxy for flags being loaded
-        /** @deprecated Use `flagsEndpointWasHit` instead.  We migrated to using a new feature flag endpoint and the new method is more semantically accurate */
-        get: function () {
-            var _a, _b;
-            return (_b = (_a = this.featureFlags) === null || _a === void 0 ? void 0 : _a.hasLoadedFlags) !== null && _b !== void 0 ? _b : false;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(PostHog.prototype, "flagsEndpointWasHit", {
-        get: function () {
-            var _a, _b;
-            return (_b = (_a = this.featureFlags) === null || _a === void 0 ? void 0 : _a.hasLoadedFlags) !== null && _b !== void 0 ? _b : false;
-        },
-        enumerable: false,
-        configurable: true
-    });
     // Initialization methods
     /**
      * Initializes a new instance of the PostHog capturing object.
@@ -360,20 +287,20 @@ var PostHog = /** @class */ (function () {
      *
      * @returns The newly initialized PostHog instance
      */
-    PostHog.prototype.init = function (token, config, name) {
+    init(token, config, name) {
         var _a;
         if (!name || name === PRIMARY_INSTANCE_NAME) {
             // This means we are initializing the primary instance (i.e. this)
             return this._init(token, config, name);
         }
         else {
-            var namedPosthog = (_a = instances[name]) !== null && _a !== void 0 ? _a : new PostHog();
+            const namedPosthog = (_a = instances[name]) !== null && _a !== void 0 ? _a : new PostHog();
             namedPosthog._init(token, config, name);
             instances[name] = namedPosthog;
             instances[PRIMARY_INSTANCE_NAME][name] = namedPosthog;
             return namedPosthog;
         }
-    };
+    }
     // posthog._init(token:string, config:object, name:string)
     //
     // This function sets up the current instance of the posthog
@@ -387,12 +314,10 @@ var PostHog = /** @class */ (function () {
     // IE11 compatible. We could use polyfills, which would make the
     // code a bit cleaner, but will add some overhead.
     //
-    PostHog.prototype._init = function (token, config, name) {
-        var _this = this;
+    _init(token, config = {}, name) {
         var _a, _b, _c, _d, _e;
-        if (config === void 0) { config = {}; }
-        if ((0, core_1.isUndefined)(token) || (0, core_1.isEmptyString)(token)) {
-            logger_1.logger.critical('PostHog was initialized without a token. This likely indicates a misconfiguration. Please check the first argument passed to posthog.init()');
+        if (isUndefined(token) || isEmptyString(token)) {
+            logger.critical('PostHog was initialized without a token. This likely indicates a misconfiguration. Please check the first argument passed to posthog.init()');
             return this;
         }
         if (this.__loaded) {
@@ -409,56 +334,56 @@ var PostHog = /** @class */ (function () {
         if (config.person_profiles) {
             this._initialPersonProfilesConfig = config.person_profiles;
         }
-        this.set_config((0, utils_1.extend)({}, (0, exports.defaultConfig)(config.defaults), (0, exports.configRenames)(config), {
+        this.set_config(extend({}, defaultConfig(config.defaults), configRenames(config), {
             name: name,
             token: token,
         }));
         if (this.config.on_xhr_error) {
-            logger_1.logger.error('on_xhr_error is deprecated. Use on_request_error instead');
+            logger.error('on_xhr_error is deprecated. Use on_request_error instead');
         }
-        this.compression = config.disable_compression ? undefined : types_1.Compression.GZipJS;
-        var persistenceDisabled = this._is_persistence_disabled();
-        this.persistence = new posthog_persistence_1.PostHogPersistence(this.config, persistenceDisabled);
+        this.compression = config.disable_compression ? undefined : Compression.GZipJS;
+        const persistenceDisabled = this._is_persistence_disabled();
+        this.persistence = new PostHogPersistence(this.config, persistenceDisabled);
         this.sessionPersistence =
             this.config.persistence === 'sessionStorage' || this.config.persistence === 'memory'
                 ? this.persistence
-                : new posthog_persistence_1.PostHogPersistence(__assign(__assign({}, this.config), { persistence: 'sessionStorage' }), persistenceDisabled);
+                : new PostHogPersistence({ ...this.config, persistence: 'sessionStorage' }, persistenceDisabled);
         // should I store the initial person profiles config in persistence?
-        var initialPersistenceProps = __assign({}, this.persistence.props);
-        var initialSessionProps = __assign({}, this.sessionPersistence.props);
+        const initialPersistenceProps = { ...this.persistence.props };
+        const initialSessionProps = { ...this.sessionPersistence.props };
         this.register({ $initialization_time: new Date().toISOString() });
-        this._requestQueue = new request_queue_1.RequestQueue(function (req) { return _this._send_retriable_request(req); }, this.config.request_queue_config);
-        this._retryQueue = new retry_queue_1.RetryQueue(this);
+        this._requestQueue = new RequestQueue((req) => this._send_retriable_request(req), this.config.request_queue_config);
+        this._retryQueue = new RetryQueue(this);
         this.__request_queue = [];
-        var startInCookielessMode = this.config.cookieless_mode === 'always' ||
+        const startInCookielessMode = this.config.cookieless_mode === 'always' ||
             (this.config.cookieless_mode === 'on_reject' && this.consent.isExplicitlyOptedOut());
         if (!startInCookielessMode) {
-            this.sessionManager = new sessionid_1.SessionIdManager(this);
-            this.sessionPropsManager = new session_props_1.SessionPropsManager(this, this.sessionManager, this.persistence);
+            this.sessionManager = new SessionIdManager(this);
+            this.sessionPropsManager = new SessionPropsManager(this, this.sessionManager, this.persistence);
         }
         // Conditionally defer extension initialization based on config
         if (this.config.__preview_deferred_init_extensions) {
             // EXPERIMENTAL: Defer non-critical extension initialization to next tick
             // This reduces main thread blocking during init
             // while keeping critical path (persistence, sessions, capture) synchronous
-            logger_1.logger.info('Deferring extension initialization to improve startup performance');
-            setTimeout(function () {
-                _this._initExtensions(startInCookielessMode);
+            logger.info('Deferring extension initialization to improve startup performance');
+            setTimeout(() => {
+                this._initExtensions(startInCookielessMode);
             }, 0);
         }
         else {
             // Legacy synchronous initialization (default for now)
-            logger_1.logger.info('Initializing extensions synchronously');
+            logger.info('Initializing extensions synchronously');
             this._initExtensions(startInCookielessMode);
         }
         // if any instance on the page has debug = true, we set the
         // global debug to be true
-        config_1.default.DEBUG = config_1.default.DEBUG || this.config.debug;
-        if (config_1.default.DEBUG) {
-            logger_1.logger.info('Starting in debug mode', {
+        Config.DEBUG = Config.DEBUG || this.config.debug;
+        if (Config.DEBUG) {
+            logger.info('Starting in debug mode', {
                 this: this,
-                config: config,
-                thisC: __assign({}, this.config),
+                config,
+                thisC: { ...this.config },
                 p: initialPersistenceProps,
                 s: initialSessionProps,
             });
@@ -466,36 +391,36 @@ var PostHog = /** @class */ (function () {
         // isUndefined doesn't provide typehint here so wouldn't reduce bundle as we'd need to assign
         // eslint-disable-next-line posthog-js/no-direct-undefined-check
         if (((_a = config.bootstrap) === null || _a === void 0 ? void 0 : _a.distinctID) !== undefined) {
-            var uuid = this.config.get_device_id((0, uuidv7_1.uuidv7)());
-            var deviceID = ((_b = config.bootstrap) === null || _b === void 0 ? void 0 : _b.isIdentifiedID) ? uuid : config.bootstrap.distinctID;
-            this.persistence.set_property(constants_1.USER_STATE, ((_c = config.bootstrap) === null || _c === void 0 ? void 0 : _c.isIdentifiedID) ? 'identified' : 'anonymous');
+            const uuid = this.config.get_device_id(uuidv7());
+            const deviceID = ((_b = config.bootstrap) === null || _b === void 0 ? void 0 : _b.isIdentifiedID) ? uuid : config.bootstrap.distinctID;
+            this.persistence.set_property(USER_STATE, ((_c = config.bootstrap) === null || _c === void 0 ? void 0 : _c.isIdentifiedID) ? 'identified' : 'anonymous');
             this.register({
                 distinct_id: config.bootstrap.distinctID,
                 $device_id: deviceID,
             });
         }
         if (this._hasBootstrappedFeatureFlags()) {
-            var activeFlags_1 = Object.keys(((_d = config.bootstrap) === null || _d === void 0 ? void 0 : _d.featureFlags) || {})
-                .filter(function (flag) { var _a, _b; return !!((_b = (_a = config.bootstrap) === null || _a === void 0 ? void 0 : _a.featureFlags) === null || _b === void 0 ? void 0 : _b[flag]); })
-                .reduce(function (res, key) {
+            const activeFlags = Object.keys(((_d = config.bootstrap) === null || _d === void 0 ? void 0 : _d.featureFlags) || {})
+                .filter((flag) => { var _a, _b; return !!((_b = (_a = config.bootstrap) === null || _a === void 0 ? void 0 : _a.featureFlags) === null || _b === void 0 ? void 0 : _b[flag]); })
+                .reduce((res, key) => {
                 var _a, _b;
                 return ((res[key] = ((_b = (_a = config.bootstrap) === null || _a === void 0 ? void 0 : _a.featureFlags) === null || _b === void 0 ? void 0 : _b[key]) || false),
                     res);
             }, {});
-            var featureFlagPayloads = Object.keys(((_e = config.bootstrap) === null || _e === void 0 ? void 0 : _e.featureFlagPayloads) || {})
-                .filter(function (key) { return activeFlags_1[key]; })
-                .reduce(function (res, key) {
+            const featureFlagPayloads = Object.keys(((_e = config.bootstrap) === null || _e === void 0 ? void 0 : _e.featureFlagPayloads) || {})
+                .filter((key) => activeFlags[key])
+                .reduce((res, key) => {
                 var _a, _b, _c, _d;
                 if ((_b = (_a = config.bootstrap) === null || _a === void 0 ? void 0 : _a.featureFlagPayloads) === null || _b === void 0 ? void 0 : _b[key]) {
                     res[key] = (_d = (_c = config.bootstrap) === null || _c === void 0 ? void 0 : _c.featureFlagPayloads) === null || _d === void 0 ? void 0 : _d[key];
                 }
                 return res;
             }, {});
-            this.featureFlags.receivedFeatureFlags({ featureFlags: activeFlags_1, featureFlagPayloads: featureFlagPayloads });
+            this.featureFlags.receivedFeatureFlags({ featureFlags: activeFlags, featureFlagPayloads });
         }
         if (startInCookielessMode) {
             this.register_once({
-                distinct_id: constants_1.COOKIELESS_SENTINEL_VALUE,
+                distinct_id: COOKIELESS_SENTINEL_VALUE,
                 $device_id: null,
             }, '');
         }
@@ -503,132 +428,130 @@ var PostHog = /** @class */ (function () {
             // There is no need to set the distinct id
             // or the device id if something was already stored
             // in the persistence
-            var uuid = this.config.get_device_id((0, uuidv7_1.uuidv7)());
+            const uuid = this.config.get_device_id(uuidv7());
             this.register_once({
                 distinct_id: uuid,
                 $device_id: uuid,
             }, '');
             // distinct id == $device_id is a proxy for anonymous user
-            this.persistence.set_property(constants_1.USER_STATE, 'anonymous');
+            this.persistence.set_property(USER_STATE, 'anonymous');
         }
         // Set up event handler for pageleave
         // Use `onpagehide` if available, see https://calendar.perfplanet.com/2020/beaconing-in-practice/#beaconing-reliability-avoiding-abandons
         //
         // Not making it passive to try and force the browser to handle this before the page is unloaded
-        (0, utils_1.addEventListener)(globals_1.window, 'onpagehide' in self ? 'pagehide' : 'unload', this._handle_unload.bind(this), {
+        addEventListener(window, 'onpagehide' in self ? 'pagehide' : 'unload', this._handle_unload.bind(this), {
             passive: false,
         });
         this.toolbar.maybeLoadToolbar();
         // We want to avoid promises for IE11 compatibility, so we use callbacks here
         if (config.segment) {
-            (0, segment_integration_1.setupSegmentIntegration)(this, function () { return _this._loaded(); });
+            setupSegmentIntegration(this, () => this._loaded());
         }
         else {
             this._loaded();
         }
-        if ((0, core_1.isFunction)(this.config._onCapture) && this.config._onCapture !== __NOOP) {
-            logger_1.logger.warn('onCapture is deprecated. Please use `before_send` instead');
-            this.on('eventCaptured', function (data) { return _this.config._onCapture(data.event, data); });
+        if (isFunction(this.config._onCapture) && this.config._onCapture !== __NOOP) {
+            logger.warn('onCapture is deprecated. Please use `before_send` instead');
+            this.on('eventCaptured', (data) => this.config._onCapture(data.event, data));
         }
         if (this.config.ip) {
-            logger_1.logger.warn('The `ip` config option has NO EFFECT AT ALL and has been deprecated. Use a custom transformation or "Discard IP data" project setting instead. See https://posthog.com/tutorials/web-redact-properties#hiding-customer-ip-address for more information.');
+            logger.warn('The `ip` config option has NO EFFECT AT ALL and has been deprecated. Use a custom transformation or "Discard IP data" project setting instead. See https://posthog.com/tutorials/web-redact-properties#hiding-customer-ip-address for more information.');
         }
         return this;
-    };
-    PostHog.prototype._initExtensions = function (startInCookielessMode) {
-        var _this = this;
+    }
+    _initExtensions(startInCookielessMode) {
         // we don't support IE11 anymore, so performance.now is safe
         // eslint-disable-next-line compat/compat
-        var initStartTime = performance.now();
-        this.historyAutocapture = new history_autocapture_1.HistoryAutocapture(this);
+        const initStartTime = performance.now();
+        this.historyAutocapture = new HistoryAutocapture(this);
         this.historyAutocapture.startIfEnabled();
         // Build queue of extension initialization tasks
-        var initTasks = [];
-        initTasks.push(function () {
-            new tracing_headers_1.TracingHeaders(_this).startIfEnabledOrStop();
+        const initTasks = [];
+        initTasks.push(() => {
+            new TracingHeaders(this).startIfEnabledOrStop();
         });
-        initTasks.push(function () {
+        initTasks.push(() => {
             var _a;
-            _this.siteApps = new site_apps_1.SiteApps(_this);
-            (_a = _this.siteApps) === null || _a === void 0 ? void 0 : _a.init();
+            this.siteApps = new SiteApps(this);
+            (_a = this.siteApps) === null || _a === void 0 ? void 0 : _a.init();
         });
         if (!startInCookielessMode) {
-            initTasks.push(function () {
-                _this.sessionRecording = new session_recording_1.SessionRecording(_this);
-                _this.sessionRecording.startIfEnabledOrStop();
+            initTasks.push(() => {
+                this.sessionRecording = new SessionRecording(this);
+                this.sessionRecording.startIfEnabledOrStop();
             });
         }
         if (!this.config.disable_scroll_properties) {
-            initTasks.push(function () {
-                _this.scrollManager.startMeasuringScrollPosition();
+            initTasks.push(() => {
+                this.scrollManager.startMeasuringScrollPosition();
             });
         }
-        initTasks.push(function () {
-            _this.autocapture = new autocapture_1.Autocapture(_this);
-            _this.autocapture.startIfEnabled();
+        initTasks.push(() => {
+            this.autocapture = new Autocapture(this);
+            this.autocapture.startIfEnabled();
         });
-        initTasks.push(function () {
-            _this.surveys.loadIfEnabled();
+        initTasks.push(() => {
+            this.surveys.loadIfEnabled();
         });
-        initTasks.push(function () {
-            _this.heatmaps = new heatmaps_1.Heatmaps(_this);
-            _this.heatmaps.startIfEnabled();
+        initTasks.push(() => {
+            this.heatmaps = new Heatmaps(this);
+            this.heatmaps.startIfEnabled();
         });
-        initTasks.push(function () {
-            _this.webVitalsAutocapture = new web_vitals_1.WebVitalsAutocapture(_this);
+        initTasks.push(() => {
+            this.webVitalsAutocapture = new WebVitalsAutocapture(this);
         });
-        initTasks.push(function () {
-            _this.exceptionObserver = new exception_autocapture_1.ExceptionObserver(_this);
-            _this.exceptionObserver.startIfEnabled();
+        initTasks.push(() => {
+            this.exceptionObserver = new ExceptionObserver(this);
+            this.exceptionObserver.startIfEnabled();
         });
-        initTasks.push(function () {
-            _this.deadClicksAutocapture = new dead_clicks_autocapture_1.DeadClicksAutocapture(_this, dead_clicks_autocapture_1.isDeadClicksEnabledForAutocapture);
-            _this.deadClicksAutocapture.startIfEnabled();
+        initTasks.push(() => {
+            this.deadClicksAutocapture = new DeadClicksAutocapture(this, isDeadClicksEnabledForAutocapture);
+            this.deadClicksAutocapture.startIfEnabled();
         });
         // Replay any pending remote config that arrived before extensions were ready
-        initTasks.push(function () {
-            if (_this._pendingRemoteConfig) {
-                var config = _this._pendingRemoteConfig;
-                _this._pendingRemoteConfig = undefined; // Clear before replaying to avoid re-storing
-                _this._onRemoteConfig(config);
+        initTasks.push(() => {
+            if (this._pendingRemoteConfig) {
+                const config = this._pendingRemoteConfig;
+                this._pendingRemoteConfig = undefined; // Clear before replaying to avoid re-storing
+                this._onRemoteConfig(config);
             }
         });
         // Process tasks with time-slicing to avoid blocking
         this._processInitTaskQueue(initTasks, initStartTime);
-    };
-    PostHog.prototype._processInitTaskQueue = function (queue, initStartTime) {
-        var _this = this;
-        var TIME_BUDGET_MS = 30; // Respect frame budget (~60fps = 16ms, but we're already deferred)
+    }
+    _processInitTaskQueue(queue, initStartTime) {
+        const TIME_BUDGET_MS = 30; // Respect frame budget (~60fps = 16ms, but we're already deferred)
         while (queue.length > 0) {
             // Only time-slice if deferred init is enabled, otherwise run synchronously
             if (this.config.__preview_deferred_init_extensions) {
                 // we don't support IE11 anymore, so performance.now is safe
                 // eslint-disable-next-line compat/compat
-                var elapsed = performance.now() - initStartTime;
+                const elapsed = performance.now() - initStartTime;
                 // Check if we've exceeded our time budget
                 if (elapsed >= TIME_BUDGET_MS && queue.length > 0) {
                     // Yield to browser, then continue processing
-                    setTimeout(function () {
-                        _this._processInitTaskQueue(queue, initStartTime);
+                    setTimeout(() => {
+                        this._processInitTaskQueue(queue, initStartTime);
                     }, 0);
                     return;
                 }
             }
             // Process next task
-            var task = queue.shift();
+            const task = queue.shift();
             if (task) {
                 try {
                     task();
                 }
                 catch (error) {
-                    logger_1.logger.error('Error initializing extension:', error);
+                    logger.error('Error initializing extension:', error);
                 }
             }
         }
         // All tasks complete - record timing for both sync and deferred modes
         // we don't support IE11 anymore, so performance.now is safe
         // eslint-disable-next-line compat/compat
-        var taskInitTiming = Math.round(performance.now() - initStartTime);
+        const taskInitTiming = Math.round(performance.now() - initStartTime);
         this.register_for_session({
             $sdk_debug_extensions_init_method: this.config.__preview_deferred_init_extensions
                 ? 'deferred'
@@ -636,16 +559,15 @@ var PostHog = /** @class */ (function () {
             $sdk_debug_extensions_init_time_ms: taskInitTiming,
         });
         if (this.config.__preview_deferred_init_extensions) {
-            logger_1.logger.info("PostHog extensions initialized (".concat(taskInitTiming, "ms)"));
+            logger.info(`PostHog extensions initialized (${taskInitTiming}ms)`);
         }
-    };
-    PostHog.prototype._onRemoteConfig = function (config) {
-        var _this = this;
+    }
+    _onRemoteConfig(config) {
         var _a, _b, _c, _d, _e, _f, _g, _h;
-        if (!(globals_1.document && globals_1.document.body)) {
-            logger_1.logger.info('document not ready yet, trying again in 500 milliseconds...');
-            setTimeout(function () {
-                _this._onRemoteConfig(config);
+        if (!(document && document.body)) {
+            logger.info('document not ready yet, trying again in 500 milliseconds...');
+            setTimeout(() => {
+                this._onRemoteConfig(config);
             }, 500);
             return;
         }
@@ -655,10 +577,10 @@ var PostHog = /** @class */ (function () {
         }
         this.compression = undefined;
         if (config.supportedCompression && !this.config.disable_compression) {
-            this.compression = (0, core_1.includes)(config['supportedCompression'], types_1.Compression.GZipJS)
-                ? types_1.Compression.GZipJS
-                : (0, core_1.includes)(config['supportedCompression'], types_1.Compression.Base64)
-                    ? types_1.Compression.Base64
+            this.compression = includes(config['supportedCompression'], Compression.GZipJS)
+                ? Compression.GZipJS
+                : includes(config['supportedCompression'], Compression.Base64)
+                    ? Compression.Base64
                     : undefined;
         }
         if ((_a = config.analytics) === null || _a === void 0 ? void 0 : _a.endpoint) {
@@ -676,46 +598,44 @@ var PostHog = /** @class */ (function () {
         (_g = this.exceptionObserver) === null || _g === void 0 ? void 0 : _g.onRemoteConfig(config);
         this.exceptions.onRemoteConfig(config);
         (_h = this.deadClicksAutocapture) === null || _h === void 0 ? void 0 : _h.onRemoteConfig(config);
-    };
-    PostHog.prototype._loaded = function () {
-        var _this = this;
+    }
+    _loaded() {
         try {
             this.config.loaded(this);
         }
         catch (err) {
-            logger_1.logger.critical('`loaded` function failed', err);
+            logger.critical('`loaded` function failed', err);
         }
         this._start_queue_if_opted_in();
         // this happens after "loaded" so a user can call identify or any other things before the pageview fires
         if (this.config.capture_pageview) {
             // NOTE: We want to fire this on the next tick as the previous implementation had this side effect
             // and some clients may rely on it
-            setTimeout(function () {
-                if (_this.consent.isOptedIn() || _this.config.cookieless_mode === 'always') {
-                    _this._captureInitialPageview();
+            setTimeout(() => {
+                if (this.consent.isOptedIn() || this.config.cookieless_mode === 'always') {
+                    this._captureInitialPageview();
                 }
             }, 1);
         }
-        new remote_config_1.RemoteConfigLoader(this).load();
+        new RemoteConfigLoader(this).load();
         this.featureFlags.flags();
-    };
-    PostHog.prototype._start_queue_if_opted_in = function () {
+    }
+    _start_queue_if_opted_in() {
         var _a;
         if (this.is_capturing()) {
             if (this.config.request_batching) {
                 (_a = this._requestQueue) === null || _a === void 0 ? void 0 : _a.enable();
             }
         }
-    };
-    PostHog.prototype._dom_loaded = function () {
-        var _this = this;
+    }
+    _dom_loaded() {
         if (this.is_capturing()) {
-            (0, utils_1.eachArray)(this.__request_queue, function (item) { return _this._send_retriable_request(item); });
+            eachArray(this.__request_queue, (item) => this._send_retriable_request(item));
         }
         this.__request_queue = [];
         this._start_queue_if_opted_in();
-    };
-    PostHog.prototype._handle_unload = function () {
+    }
+    _handle_unload() {
         var _a, _b;
         if (!this.config.request_batching) {
             if (this._shouldCapturePageleave()) {
@@ -728,9 +648,8 @@ var PostHog = /** @class */ (function () {
         }
         (_a = this._requestQueue) === null || _a === void 0 ? void 0 : _a.unload();
         (_b = this._retryQueue) === null || _b === void 0 ? void 0 : _b.unload();
-    };
-    PostHog.prototype._send_request = function (options) {
-        var _this = this;
+    }
+    _send_request(options) {
         if (!this.__loaded) {
             return;
         }
@@ -742,11 +661,13 @@ var PostHog = /** @class */ (function () {
             return;
         }
         options.transport = options.transport || this.config.api_transport;
-        options.url = (0, request_1.extendURLParams)(options.url, {
+        options.url = extendURLParams(options.url, {
             // Whether to detect ip info or not
             ip: this.config.ip ? 1 : 0,
         });
-        options.headers = __assign({}, this.config.request_headers);
+        options.headers = {
+            ...this.config.request_headers,
+        };
         options.compression = options.compression === 'best-available' ? this.compression : options.compression;
         options.disableXHRCredentials = this.config.__preview_disable_xhr_credentials;
         if (this.config.__preview_disable_beacon) {
@@ -755,23 +676,26 @@ var PostHog = /** @class */ (function () {
         // Specially useful if you're doing SSR with NextJS
         // Users must be careful when tweaking `cache` because they might get out-of-date feature flags
         options.fetchOptions = options.fetchOptions || this.config.fetch_options;
-        (0, request_1.request)(__assign(__assign({}, options), { callback: function (response) {
+        request({
+            ...options,
+            callback: (response) => {
                 var _a, _b, _c;
-                _this.rateLimiter.checkForLimiting(response);
+                this.rateLimiter.checkForLimiting(response);
                 if (response.statusCode >= 400) {
-                    (_b = (_a = _this.config).on_request_error) === null || _b === void 0 ? void 0 : _b.call(_a, response);
+                    (_b = (_a = this.config).on_request_error) === null || _b === void 0 ? void 0 : _b.call(_a, response);
                 }
                 (_c = options.callback) === null || _c === void 0 ? void 0 : _c.call(options, response);
-            } }));
-    };
-    PostHog.prototype._send_retriable_request = function (options) {
+            },
+        });
+    }
+    _send_retriable_request(options) {
         if (this._retryQueue) {
             this._retryQueue.retriableRequest(options);
         }
         else {
             this._send_request(options);
         }
-    };
+    }
     /**
      * _execute_array() deals with processing any posthog function
      * calls that were called before the PostHog library were loaded
@@ -784,26 +708,25 @@ var PostHog = /** @class */ (function () {
      *
      * @param {Array} array
      */
-    PostHog.prototype._execute_array = function (array) {
-        var _this = this;
-        var fn_name;
-        var alias_calls = [];
-        var other_calls = [];
-        var capturing_calls = [];
-        (0, utils_1.eachArray)(array, function (item) {
+    _execute_array(array) {
+        let fn_name;
+        const alias_calls = [];
+        const other_calls = [];
+        const capturing_calls = [];
+        eachArray(array, (item) => {
             if (item) {
                 fn_name = item[0];
-                if ((0, core_1.isArray)(fn_name)) {
+                if (isArray(fn_name)) {
                     capturing_calls.push(item); // chained call e.g. posthog.get_group().set()
                 }
-                else if ((0, core_1.isFunction)(item)) {
+                else if (isFunction(item)) {
                     ;
-                    item.call(_this);
+                    item.call(this);
                 }
-                else if ((0, core_1.isArray)(item) && fn_name === 'alias') {
+                else if (isArray(item) && fn_name === 'alias') {
                     alias_calls.push(item);
                 }
-                else if ((0, core_1.isArray)(item) && fn_name.indexOf('capture') !== -1 && (0, core_1.isFunction)(_this[fn_name])) {
+                else if (isArray(item) && fn_name.indexOf('capture') !== -1 && isFunction(this[fn_name])) {
                     capturing_calls.push(item);
                 }
                 else {
@@ -811,13 +734,13 @@ var PostHog = /** @class */ (function () {
                 }
             }
         });
-        var execute = function (calls, thisArg) {
-            (0, utils_1.eachArray)(calls, function (item) {
-                if ((0, core_1.isArray)(item[0])) {
+        const execute = function (calls, thisArg) {
+            eachArray(calls, function (item) {
+                if (isArray(item[0])) {
                     // chained call
-                    var caller_1 = thisArg;
-                    (0, utils_1.each)(item, function (call) {
-                        caller_1 = caller_1[call[0]].apply(caller_1, call.slice(1));
+                    let caller = thisArg;
+                    each(item, function (call) {
+                        caller = caller[call[0]].apply(caller, call.slice(1));
                     });
                 }
                 else {
@@ -830,12 +753,12 @@ var PostHog = /** @class */ (function () {
         execute(alias_calls, this);
         execute(other_calls, this);
         execute(capturing_calls, this);
-    };
-    PostHog.prototype._hasBootstrappedFeatureFlags = function () {
+    }
+    _hasBootstrappedFeatureFlags() {
         var _a, _b;
         return ((((_a = this.config.bootstrap) === null || _a === void 0 ? void 0 : _a.featureFlags) && Object.keys((_b = this.config.bootstrap) === null || _b === void 0 ? void 0 : _b.featureFlags).length > 0) ||
             false);
-    };
+    }
     /**
      * push() keeps the standard async-array-push
      * behavior around after the lib is loaded.
@@ -850,9 +773,9 @@ var PostHog = /** @class */ (function () {
      *
      * @param {Array} item A [function_name, args...] array to be executed
      */
-    PostHog.prototype.push = function (item) {
+    push(item) {
         this._execute_array([item]);
-    };
+    }
     /**
      * Captures an event with optional properties and configuration.
      *
@@ -878,39 +801,38 @@ var PostHog = /** @class */ (function () {
      *
      * @returns The capture result containing event data, or undefined if capture failed
      */
-    PostHog.prototype.capture = function (event_name, properties, options) {
+    capture(event_name, properties, options) {
         var _a;
-        var _b;
         // While developing, a developer might purposefully _not_ call init(),
         // in this case, we would like capture to be a noop.
         if (!this.__loaded || !this.persistence || !this.sessionPersistence || !this._requestQueue) {
-            logger_1.logger.uninitializedWarning('posthog.capture');
+            logger.uninitializedWarning('posthog.capture');
             return;
         }
         if (!this.is_capturing()) {
             return;
         }
         // typing doesn't prevent interesting data
-        if ((0, core_1.isUndefined)(event_name) || !(0, core_1.isString)(event_name)) {
-            logger_1.logger.error('No event name provided to posthog.capture');
+        if (isUndefined(event_name) || !isString(event_name)) {
+            logger.error('No event name provided to posthog.capture');
             return;
         }
-        var isBot = !this.config.opt_out_useragent_filter && this._is_bot();
-        var shouldDropBotEvent = isBot && !this.config.__preview_capture_bot_pageviews;
+        const isBot = !this.config.opt_out_useragent_filter && this._is_bot();
+        const shouldDropBotEvent = isBot && !this.config.__preview_capture_bot_pageviews;
         // We drop bot events unless the preview flag to send bot pageviews is enabled
         // or the user has explicitly opted out of useragent filtering
         if (shouldDropBotEvent) {
             return;
         }
-        var clientRateLimitContext = !(options === null || options === void 0 ? void 0 : options.skip_client_rate_limiting)
+        const clientRateLimitContext = !(options === null || options === void 0 ? void 0 : options.skip_client_rate_limiting)
             ? this.rateLimiter.clientRateLimitContext()
             : undefined;
         if (clientRateLimitContext === null || clientRateLimitContext === void 0 ? void 0 : clientRateLimitContext.isRateLimited) {
-            logger_1.logger.critical('This capture call is ignored due to client rate limiting.');
+            logger.critical('This capture call is ignored due to client rate limiting.');
             return;
         }
-        if ((properties === null || properties === void 0 ? void 0 : properties.$current_url) && !(0, core_1.isString)(properties === null || properties === void 0 ? void 0 : properties.$current_url)) {
-            logger_1.logger.error('Invalid `$current_url` property provided to `posthog.capture`. Input must be a string. Ignoring provided value.');
+        if ((properties === null || properties === void 0 ? void 0 : properties.$current_url) && !isString(properties === null || properties === void 0 ? void 0 : properties.$current_url)) {
+            logger.error('Invalid `$current_url` property provided to `posthog.capture`. Input must be a string. Ignoring provided value.');
             properties === null || properties === void 0 ? true : delete properties.$current_url;
         }
         // update persistence
@@ -927,11 +849,11 @@ var PostHog = /** @class */ (function () {
         if (this.config.save_campaign_params || this.config.save_referrer) {
             this.persistence.set_initial_person_info();
         }
-        var systemTime = new Date();
-        var timestamp = (options === null || options === void 0 ? void 0 : options.timestamp) || systemTime;
-        var uuid = (0, uuidv7_1.uuidv7)();
-        var data = {
-            uuid: uuid,
+        const systemTime = new Date();
+        const timestamp = (options === null || options === void 0 ? void 0 : options.timestamp) || systemTime;
+        const uuid = uuidv7();
+        let data = {
+            uuid,
             event: event_name,
             properties: this.calculateEventProperties(event_name, properties || {}, timestamp, uuid),
         };
@@ -945,34 +867,37 @@ var PostHog = /** @class */ (function () {
         if (clientRateLimitContext) {
             data.properties['$lib_rate_limit_remaining_tokens'] = clientRateLimitContext.remainingTokens;
         }
-        var setProperties = options === null || options === void 0 ? void 0 : options.$set;
+        const setProperties = options === null || options === void 0 ? void 0 : options.$set;
         if (setProperties) {
             data.$set = options === null || options === void 0 ? void 0 : options.$set;
         }
-        var setOnceProperties = this._calculate_set_once_properties(options === null || options === void 0 ? void 0 : options.$set_once);
+        const setOnceProperties = this._calculate_set_once_properties(options === null || options === void 0 ? void 0 : options.$set_once);
         if (setOnceProperties) {
             data.$set_once = setOnceProperties;
         }
-        data = (0, utils_1._copyAndTruncateStrings)(data, (options === null || options === void 0 ? void 0 : options._noTruncate) ? null : this.config.properties_string_max_length);
+        data = _copyAndTruncateStrings(data, (options === null || options === void 0 ? void 0 : options._noTruncate) ? null : this.config.properties_string_max_length);
         data.timestamp = timestamp;
-        if (!(0, core_1.isUndefined)(options === null || options === void 0 ? void 0 : options.timestamp)) {
+        if (!isUndefined(options === null || options === void 0 ? void 0 : options.timestamp)) {
             data.properties['$event_time_override_provided'] = true;
             data.properties['$event_time_override_system_time'] = systemTime;
         }
-        if (event_name === posthog_surveys_types_1.SurveyEventName.DISMISSED || event_name === posthog_surveys_types_1.SurveyEventName.SENT) {
-            var surveyId = properties === null || properties === void 0 ? void 0 : properties[posthog_surveys_types_1.SurveyEventProperties.SURVEY_ID];
-            var surveyIteration = properties === null || properties === void 0 ? void 0 : properties[posthog_surveys_types_1.SurveyEventProperties.SURVEY_ITERATION];
-            (0, survey_utils_1.setSurveySeenOnLocalStorage)({ id: surveyId, current_iteration: surveyIteration });
-            data.$set = __assign(__assign({}, data.$set), (_a = {}, _a[(0, survey_utils_1.getSurveyInteractionProperty)({ id: surveyId, current_iteration: surveyIteration }, event_name === posthog_surveys_types_1.SurveyEventName.SENT ? 'responded' : 'dismissed')] = true, _a));
+        if (event_name === SurveyEventName.DISMISSED || event_name === SurveyEventName.SENT) {
+            const surveyId = properties === null || properties === void 0 ? void 0 : properties[SurveyEventProperties.SURVEY_ID];
+            const surveyIteration = properties === null || properties === void 0 ? void 0 : properties[SurveyEventProperties.SURVEY_ITERATION];
+            setSurveySeenOnLocalStorage({ id: surveyId, current_iteration: surveyIteration });
+            data.$set = {
+                ...data.$set,
+                [getSurveyInteractionProperty({ id: surveyId, current_iteration: surveyIteration }, event_name === SurveyEventName.SENT ? 'responded' : 'dismissed')]: true,
+            };
         }
         // Top-level $set overriding values from the one from properties is taken from the plugin-server normalizeEvent
         // This doesn't handle $set_once, because posthog-people doesn't either
-        var finalSet = __assign(__assign({}, data.properties['$set']), data['$set']);
-        if (!(0, core_1.isEmptyObject)(finalSet)) {
+        const finalSet = { ...data.properties['$set'], ...data['$set'] };
+        if (!isEmptyObject(finalSet)) {
             this.setPersonPropertiesForFlags(finalSet);
         }
-        if (!(0, core_1.isNullish)(this.config.before_send)) {
-            var beforeSendResult = this._runBeforeSend(data);
+        if (!isNullish(this.config.before_send)) {
+            const beforeSendResult = this._runBeforeSend(data);
             if (!beforeSendResult) {
                 return;
             }
@@ -981,10 +906,10 @@ var PostHog = /** @class */ (function () {
             }
         }
         this._internalEventEmitter.emit('eventCaptured', data);
-        var requestOptions = {
+        const requestOptions = {
             method: 'POST',
-            url: (_b = options === null || options === void 0 ? void 0 : options._url) !== null && _b !== void 0 ? _b : this.requestRouter.endpointFor('api', this.analyticsDefaultEndpoint),
-            data: data,
+            url: (_a = options === null || options === void 0 ? void 0 : options._url) !== null && _a !== void 0 ? _a : this.requestRouter.endpointFor('api', this.analyticsDefaultEndpoint),
+            data,
             compression: 'best-available',
             batchKey: options === null || options === void 0 ? void 0 : options._batchKey,
         };
@@ -995,10 +920,10 @@ var PostHog = /** @class */ (function () {
             this._send_retriable_request(requestOptions);
         }
         return data;
-    };
-    PostHog.prototype._addCaptureHook = function (callback) {
-        return this.on('eventCaptured', function (data) { return callback(data.event, data); });
-    };
+    }
+    _addCaptureHook(callback) {
+        return this.on('eventCaptured', (data) => callback(data.event, data));
+    }
     /**
      * This method is used internally to calculate the event properties before sending it to PostHog. It can also be
      * used by integrations (e.g. Segment) to enrich events with PostHog properties before sending them to Segment,
@@ -1012,55 +937,55 @@ var PostHog = /** @class */ (function () {
      *
      * @internal
      */
-    PostHog.prototype.calculateEventProperties = function (eventName, eventProperties, timestamp, uuid, readOnly) {
+    calculateEventProperties(eventName, eventProperties, timestamp, uuid, readOnly) {
         var _a;
         timestamp = timestamp || new Date();
         if (!this.persistence || !this.sessionPersistence) {
             return eventProperties;
         }
         // set defaults
-        var startTimestamp = readOnly ? undefined : this.persistence.remove_event_timer(eventName);
-        var properties = __assign({}, eventProperties);
+        const startTimestamp = readOnly ? undefined : this.persistence.remove_event_timer(eventName);
+        let properties = { ...eventProperties };
         properties['token'] = this.config.token;
         properties['$config_defaults'] = this.config.defaults;
         if (this.config.cookieless_mode == 'always' ||
             (this.config.cookieless_mode == 'on_reject' && this.consent.isExplicitlyOptedOut())) {
             // Set a flag to tell the plugin server to use cookieless server hash mode
-            properties[constants_1.COOKIELESS_MODE_FLAG_PROPERTY] = true;
+            properties[COOKIELESS_MODE_FLAG_PROPERTY] = true;
         }
         if (eventName === '$snapshot') {
-            var persistenceProps = __assign(__assign({}, this.persistence.properties()), this.sessionPersistence.properties());
+            const persistenceProps = { ...this.persistence.properties(), ...this.sessionPersistence.properties() };
             properties['distinct_id'] = persistenceProps.distinct_id;
             if (
             // we spotted one customer that was managing to send `false` for ~9k events a day
-            !((0, core_1.isString)(properties['distinct_id']) || (0, core_1.isNumber)(properties['distinct_id'])) ||
-                (0, core_1.isEmptyString)(properties['distinct_id'])) {
-                logger_1.logger.error('Invalid distinct_id for replay event. This indicates a bug in your implementation');
+            !(isString(properties['distinct_id']) || isNumber(properties['distinct_id'])) ||
+                isEmptyString(properties['distinct_id'])) {
+                logger.error('Invalid distinct_id for replay event. This indicates a bug in your implementation');
             }
             return properties;
         }
-        var infoProperties = (0, event_utils_1.getEventProperties)(this.config.mask_personal_data_properties, this.config.custom_personal_data_properties);
+        const infoProperties = getEventProperties(this.config.mask_personal_data_properties, this.config.custom_personal_data_properties);
         if (this.sessionManager) {
-            var _b = this.sessionManager.checkAndGetSessionAndWindowId(readOnly, timestamp.getTime()), sessionId = _b.sessionId, windowId = _b.windowId;
+            const { sessionId, windowId } = this.sessionManager.checkAndGetSessionAndWindowId(readOnly, timestamp.getTime());
             properties['$session_id'] = sessionId;
             properties['$window_id'] = windowId;
         }
         if (this.sessionPropsManager) {
-            (0, utils_1.extend)(properties, this.sessionPropsManager.getSessionProps());
+            extend(properties, this.sessionPropsManager.getSessionProps());
         }
         try {
             if (this.sessionRecording) {
-                (0, utils_1.extend)(properties, this.sessionRecording.sdkDebugProperties);
+                extend(properties, this.sessionRecording.sdkDebugProperties);
             }
             properties['$sdk_debug_retry_queue_size'] = (_a = this._retryQueue) === null || _a === void 0 ? void 0 : _a.length;
         }
         catch (e) {
             properties['$sdk_debug_error_capturing_properties'] = String(e);
         }
-        if (this.requestRouter.region === request_router_1.RequestRouterRegion.CUSTOM) {
+        if (this.requestRouter.region === RequestRouterRegion.CUSTOM) {
             properties['$lib_custom_api_host'] = this.config.api_host;
         }
-        var pageviewProperties;
+        let pageviewProperties;
         if (eventName === '$pageview' && !readOnly) {
             pageviewProperties = this.pageViewManager.doPageView(timestamp, uuid);
         }
@@ -1070,58 +995,58 @@ var PostHog = /** @class */ (function () {
         else {
             pageviewProperties = this.pageViewManager.doEvent();
         }
-        properties = (0, utils_1.extend)(properties, pageviewProperties);
-        if (eventName === '$pageview' && globals_1.document) {
-            properties['title'] = globals_1.document.title;
+        properties = extend(properties, pageviewProperties);
+        if (eventName === '$pageview' && document) {
+            properties['title'] = document.title;
         }
         // set $duration if time_event was previously called for this event
-        if (!(0, core_1.isUndefined)(startTimestamp)) {
-            var duration_in_ms = timestamp.getTime() - startTimestamp;
+        if (!isUndefined(startTimestamp)) {
+            const duration_in_ms = timestamp.getTime() - startTimestamp;
             properties['$duration'] = parseFloat((duration_in_ms / 1000).toFixed(3));
         }
         // this is only added when this.config.opt_out_useragent_filter is true,
         // or it would always add "browser"
-        if (globals_1.userAgent && this.config.opt_out_useragent_filter) {
+        if (userAgent && this.config.opt_out_useragent_filter) {
             properties['$browser_type'] = this._is_bot() ? 'bot' : 'browser';
         }
         // note: extend writes to the first object, so lets make sure we
         // don't write to the persistence properties object and info
         // properties object by passing in a new object
         // update properties with pageview info and super-properties
-        properties = (0, utils_1.extend)({}, infoProperties, this.persistence.properties(), this.sessionPersistence.properties(), properties);
+        properties = extend({}, infoProperties, this.persistence.properties(), this.sessionPersistence.properties(), properties);
         properties['$is_identified'] = this._isIdentified();
-        if ((0, core_1.isArray)(this.config.property_denylist)) {
-            (0, utils_1.each)(this.config.property_denylist, function (denylisted_prop) {
+        if (isArray(this.config.property_denylist)) {
+            each(this.config.property_denylist, function (denylisted_prop) {
                 delete properties[denylisted_prop];
             });
         }
         else {
-            logger_1.logger.error('Invalid value for property_denylist config: ' +
+            logger.error('Invalid value for property_denylist config: ' +
                 this.config.property_denylist +
                 ' or property_blacklist config: ' +
                 this.config.property_blacklist);
         }
-        var sanitize_properties = this.config.sanitize_properties;
+        const sanitize_properties = this.config.sanitize_properties;
         if (sanitize_properties) {
-            logger_1.logger.error('sanitize_properties is deprecated. Use before_send instead');
+            logger.error('sanitize_properties is deprecated. Use before_send instead');
             properties = sanitize_properties(properties, eventName);
         }
         // add person processing flag as very last step, so it cannot be overridden
-        var hasPersonProcessing = this._hasPersonProcessing();
+        const hasPersonProcessing = this._hasPersonProcessing();
         properties['$process_person_profile'] = hasPersonProcessing;
         // if the event has person processing, ensure that all future events will too, even if the setting changes
         if (hasPersonProcessing && !readOnly) {
             this._requirePersonProcessing('_calculate_event_properties');
         }
         return properties;
-    };
+    }
     /**
      * Add additional set_once properties to the event when creating a person profile. This allows us to create the
      * profile with mostly-accurate properties, despite earlier events not setting them. We do this by storing them in
      * persistence.
      * @param dataSetOnce
      */
-    PostHog.prototype._calculate_set_once_properties = function (dataSetOnce) {
+    _calculate_set_once_properties(dataSetOnce) {
         var _a;
         if (!this.persistence || !this._hasPersonProcessing()) {
             return dataSetOnce;
@@ -1132,20 +1057,20 @@ var PostHog = /** @class */ (function () {
             return dataSetOnce;
         }
         // if we're an identified person, send initial params with every event
-        var initialProps = this.persistence.get_initial_props();
-        var sessionProps = (_a = this.sessionPropsManager) === null || _a === void 0 ? void 0 : _a.getSetOnceProps();
-        var setOnceProperties = (0, utils_1.extend)({}, initialProps, sessionProps || {}, dataSetOnce || {});
-        var sanitize_properties = this.config.sanitize_properties;
+        const initialProps = this.persistence.get_initial_props();
+        const sessionProps = (_a = this.sessionPropsManager) === null || _a === void 0 ? void 0 : _a.getSetOnceProps();
+        let setOnceProperties = extend({}, initialProps, sessionProps || {}, dataSetOnce || {});
+        const sanitize_properties = this.config.sanitize_properties;
         if (sanitize_properties) {
-            logger_1.logger.error('sanitize_properties is deprecated. Use before_send instead');
+            logger.error('sanitize_properties is deprecated. Use before_send instead');
             setOnceProperties = sanitize_properties(setOnceProperties, '$set_once');
         }
         this._personProcessingSetOncePropertiesSent = true;
-        if ((0, core_1.isEmptyObject)(setOnceProperties)) {
+        if (isEmptyObject(setOnceProperties)) {
             return undefined;
         }
         return setOnceProperties;
-    };
+    }
     /**
      * Registers super properties that are included with all events.
      *
@@ -1182,10 +1107,10 @@ var PostHog = /** @class */ (function () {
      * @param {Object} properties properties to store about the user
      * @param {Number} [days] How many days since the user's last visit to store the super properties
      */
-    PostHog.prototype.register = function (properties, days) {
+    register(properties, days) {
         var _a;
         (_a = this.persistence) === null || _a === void 0 ? void 0 : _a.register(properties, days);
-    };
+    }
     /**
      * Registers super properties only if they haven't been set before.
      *
@@ -1219,10 +1144,10 @@ var PostHog = /** @class */ (function () {
      * @param {*} [default_value] Value to override if already set in super properties (ex: 'False') Default: 'None'
      * @param {Number} [days] How many days since the users last visit to store the super properties
      */
-    PostHog.prototype.register_once = function (properties, default_value, days) {
+    register_once(properties, default_value, days) {
         var _a;
         (_a = this.persistence) === null || _a === void 0 ? void 0 : _a.register_once(properties, default_value, days);
-    };
+    }
     /**
      * Registers super properties for the current session only.
      *
@@ -1255,10 +1180,10 @@ var PostHog = /** @class */ (function () {
      *
      * @param {Object} properties An associative array of properties to store about the user
      */
-    PostHog.prototype.register_for_session = function (properties) {
+    register_for_session(properties) {
         var _a;
         (_a = this.sessionPersistence) === null || _a === void 0 ? void 0 : _a.register(properties);
-    };
+    }
     /**
      * Removes a super property from persistent storage.
      *
@@ -1278,10 +1203,10 @@ var PostHog = /** @class */ (function () {
      *
      * @param {String} property The name of the super property to remove
      */
-    PostHog.prototype.unregister = function (property) {
+    unregister(property) {
         var _a;
         (_a = this.persistence) === null || _a === void 0 ? void 0 : _a.unregister(property);
-    };
+    }
     /**
      * Removes a session super property from the current session.
      *
@@ -1301,14 +1226,13 @@ var PostHog = /** @class */ (function () {
      *
      * @param {String} property The name of the session super property to remove
      */
-    PostHog.prototype.unregister_for_session = function (property) {
+    unregister_for_session(property) {
         var _a;
         (_a = this.sessionPersistence) === null || _a === void 0 ? void 0 : _a.unregister(property);
-    };
-    PostHog.prototype._register_single = function (prop, value) {
-        var _a;
-        this.register((_a = {}, _a[prop] = value, _a));
-    };
+    }
+    _register_single(prop, value) {
+        this.register({ [prop]: value });
+    }
     /**
      * Gets the value of a feature flag for the current user.
      *
@@ -1340,9 +1264,9 @@ var PostHog = /** @class */ (function () {
      * @param {Object|String} prop Key of the feature flag.
      * @param {Object|String} options (optional) If {send_event: false}, we won't send an $feature_flag_call event to PostHog.
      */
-    PostHog.prototype.getFeatureFlag = function (key, options) {
+    getFeatureFlag(key, options) {
         return this.featureFlags.getFeatureFlag(key, options);
-    };
+    }
     /**
      * Get feature flag payload value matching key for user (supports multivariate flags).
      *
@@ -1360,15 +1284,15 @@ var PostHog = /** @class */ (function () {
      *
      * @param {Object|String} prop Key of the feature flag.
      */
-    PostHog.prototype.getFeatureFlagPayload = function (key) {
-        var payload = this.featureFlags.getFeatureFlagPayload(key);
+    getFeatureFlagPayload(key) {
+        const payload = this.featureFlags.getFeatureFlagPayload(key);
         try {
             return JSON.parse(payload);
         }
-        catch (_a) {
+        catch {
             return payload;
         }
-    };
+    }
     /**
      * Checks if a feature flag is enabled for the current user.
      *
@@ -1399,9 +1323,9 @@ var PostHog = /** @class */ (function () {
      * @param {Object|String} prop Key of the feature flag.
      * @param {Object|String} options (optional) If {send_event: false}, we won't send an $feature_flag_call event to PostHog.
      */
-    PostHog.prototype.isFeatureEnabled = function (key, options) {
+    isFeatureEnabled(key, options) {
         return this.featureFlags.isFeatureEnabled(key, options);
-    };
+    }
     /**
      * Feature flag values are cached. If something has changed with your user and you'd like to refetch their flag values, call this method.
      *
@@ -1414,9 +1338,9 @@ var PostHog = /** @class */ (function () {
      *
      * @public
      */
-    PostHog.prototype.reloadFeatureFlags = function () {
+    reloadFeatureFlags() {
         this.featureFlags.reloadFeatureFlags();
-    };
+    }
     /**
      * Opt the user in or out of an early access feature. [Learn more in the docs](/docs/feature-flags/early-access-feature-management#option-2-custom-implementation)
      *
@@ -1466,9 +1390,9 @@ var PostHog = /** @class */ (function () {
      * @param {Boolean} isEnrolled Whether the user is enrolled in the feature.
      * @param {String} [stage] The stage of the feature flag to update.
      */
-    PostHog.prototype.updateEarlyAccessFeatureEnrollment = function (key, isEnrolled, stage) {
+    updateEarlyAccessFeatureEnrollment(key, isEnrolled, stage) {
         this.featureFlags.updateEarlyAccessFeatureEnrollment(key, isEnrolled, stage);
-    };
+    }
     /**
      * Get the list of early access features. To check enrollment status, use `isFeatureEnabled`. [Learn more in the docs](/docs/feature-flags/early-access-feature-management#option-2-custom-implementation)
      *
@@ -1514,10 +1438,9 @@ var PostHog = /** @class */ (function () {
      * @param {Boolean} [force_reload] Whether to force a reload of the early access features.
      * @param {String[]} [stages] The stages of the early access features to load.
      */
-    PostHog.prototype.getEarlyAccessFeatures = function (callback, force_reload, stages) {
-        if (force_reload === void 0) { force_reload = false; }
+    getEarlyAccessFeatures(callback, force_reload = false, stages) {
         return this.featureFlags.getEarlyAccessFeatures(callback, force_reload, stages);
-    };
+    }
     /**
      * Exposes a set of events that PostHog will emit.
      * e.g. `eventCaptured` is emitted immediately before trying to send an event
@@ -1541,9 +1464,9 @@ var PostHog = /** @class */ (function () {
      * @param {Function} cb The callback function to call when the event is emitted.
      * @returns {Function} A function that can be called to unsubscribe the listener.
      */
-    PostHog.prototype.on = function (event, cb) {
+    on(event, cb) {
         return this._internalEventEmitter.on(event, cb);
-    };
+    }
     /**
      * Register an event listener that runs when feature flags become available or when they change.
      * If there are flags, the listener is called immediately in addition to being called on future changes.
@@ -1563,9 +1486,9 @@ var PostHog = /** @class */ (function () {
      *                   and also a context object indicating whether we succeeded to fetch the flags or not.
      * @returns A function that can be called to unsubscribe the listener. Used by `useEffect` when the component unmounts.
      */
-    PostHog.prototype.onFeatureFlags = function (callback) {
+    onFeatureFlags(callback) {
         return this.featureFlags.onFeatureFlags(callback);
-    };
+    }
     /**
      * Register an event listener that runs when surveys are loaded.
      *
@@ -1584,9 +1507,9 @@ var PostHog = /** @class */ (function () {
      * @param {Function} callback The callback function will be called when surveys are loaded or updated.
      * @returns {Function} A function that can be called to unsubscribe the listener.
      */
-    PostHog.prototype.onSurveysLoaded = function (callback) {
+    onSurveysLoaded(callback) {
         return this.surveys.onSurveysLoaded(callback);
-    };
+    }
     /**
      * Register an event listener that runs whenever the session id or window id change.
      * If there is already a session id, the listener is called immediately in addition to being called on future changes.
@@ -1603,10 +1526,10 @@ var PostHog = /** @class */ (function () {
      * @param {Function} [callback] The callback function will be called once a session id is present or when it or the window id are updated.
      * @returns {Function} A function that can be called to unsubscribe the listener. E.g. Used by `useEffect` when the component unmounts.
      */
-    PostHog.prototype.onSessionId = function (callback) {
+    onSessionId(callback) {
         var _a, _b;
-        return (_b = (_a = this.sessionManager) === null || _a === void 0 ? void 0 : _a.onSessionId(callback)) !== null && _b !== void 0 ? _b : (function () { });
-    };
+        return (_b = (_a = this.sessionManager) === null || _a === void 0 ? void 0 : _a.onSessionId(callback)) !== null && _b !== void 0 ? _b : (() => { });
+    }
     /**
      * Get list of all surveys.
      *
@@ -1626,10 +1549,9 @@ var PostHog = /** @class */ (function () {
      * @param {Function} [callback] Function that receives the array of surveys
      * @param {Boolean} [forceReload] Optional boolean to force an API call for updated surveys
      */
-    PostHog.prototype.getSurveys = function (callback, forceReload) {
-        if (forceReload === void 0) { forceReload = false; }
+    getSurveys(callback, forceReload = false) {
         this.surveys.getSurveys(callback, forceReload);
-    };
+    }
     /**
      * Get surveys that should be enabled for the current user. See [fetching surveys documentation](/docs/surveys/implementing-custom-surveys#fetching-surveys-manually) for more details.
      *
@@ -1647,10 +1569,9 @@ var PostHog = /** @class */ (function () {
      * @param {Function} [callback] The callback function will be called when the surveys are loaded or updated.
      * @param {Boolean} [forceReload] Whether to force a reload of the surveys.
      */
-    PostHog.prototype.getActiveMatchingSurveys = function (callback, forceReload) {
-        if (forceReload === void 0) { forceReload = false; }
+    getActiveMatchingSurveys(callback, forceReload = false) {
         this.surveys.getActiveMatchingSurveys(callback, forceReload);
-    };
+    }
     /**
      * Although we recommend using popover surveys and display conditions,
      * if you want to show surveys programmatically without setting up all
@@ -1673,9 +1594,9 @@ var PostHog = /** @class */ (function () {
      * @param {String} surveyId The ID of the survey to render.
      * @param {String} selector The selector of the HTML element to render the survey on.
      */
-    PostHog.prototype.renderSurvey = function (surveyId, selector) {
+    renderSurvey(surveyId, selector) {
         this.surveys.renderSurvey(surveyId, selector);
-    };
+    }
     /**
      * Display a survey programmatically as either a popover or inline element.
      *
@@ -1709,10 +1630,9 @@ var PostHog = /** @class */ (function () {
      *
      * {@label Surveys}
      */
-    PostHog.prototype.displaySurvey = function (surveyId, options) {
-        if (options === void 0) { options = survey_utils_1.DEFAULT_DISPLAY_SURVEY_OPTIONS; }
+    displaySurvey(surveyId, options = DEFAULT_DISPLAY_SURVEY_OPTIONS) {
         this.surveys.displaySurvey(surveyId, options);
-    };
+    }
     /**
      * Checks the feature flags associated with this Survey to see if the survey can be rendered.
      * This method is deprecated because it's synchronous and won't return the correct result if surveys are not loaded.
@@ -1726,9 +1646,9 @@ var PostHog = /** @class */ (function () {
      * @param surveyId The ID of the survey to check.
      * @returns A SurveyRenderReason object indicating if the survey can be rendered.
      */
-    PostHog.prototype.canRenderSurvey = function (surveyId) {
+    canRenderSurvey(surveyId) {
         return this.surveys.canRenderSurvey(surveyId);
-    };
+    }
     /**
      * Checks the feature flags associated with this Survey to see if the survey can be rendered.
      *
@@ -1753,10 +1673,9 @@ var PostHog = /** @class */ (function () {
      * @param forceReload If true, the survey will be reloaded from the server, Default: false
      * @returns A SurveyRenderReason object indicating if the survey can be rendered.
      */
-    PostHog.prototype.canRenderSurveyAsync = function (surveyId, forceReload) {
-        if (forceReload === void 0) { forceReload = false; }
+    canRenderSurveyAsync(surveyId, forceReload = false) {
         return this.surveys.canRenderSurveyAsync(surveyId, forceReload);
-    };
+    }
     /**
      * Associates a user with a unique identifier instead of an auto-generated ID.
      * Learn more about [identifying users](/docs/product-analytics/identify)
@@ -1798,58 +1717,58 @@ var PostHog = /** @class */ (function () {
      *  it will be overwritten by the value in userPropertiesToSet.
      * @param {Object} [userPropertiesToSetOnce] Optional: An associative array of properties to store about the user. If property is previously set, this does not override that value.
      */
-    PostHog.prototype.identify = function (new_distinct_id, userPropertiesToSet, userPropertiesToSetOnce) {
+    identify(new_distinct_id, userPropertiesToSet, userPropertiesToSetOnce) {
         if (!this.__loaded || !this.persistence) {
-            return logger_1.logger.uninitializedWarning('posthog.identify');
+            return logger.uninitializedWarning('posthog.identify');
         }
-        if ((0, core_1.isNumber)(new_distinct_id)) {
+        if (isNumber(new_distinct_id)) {
             new_distinct_id = new_distinct_id.toString();
-            logger_1.logger.warn('The first argument to posthog.identify was a number, but it should be a string. It has been converted to a string.');
+            logger.warn('The first argument to posthog.identify was a number, but it should be a string. It has been converted to a string.');
         }
         //if the new_distinct_id has not been set ignore the identify event
         if (!new_distinct_id) {
-            logger_1.logger.error('Unique user id has not been set in posthog.identify');
+            logger.error('Unique user id has not been set in posthog.identify');
             return;
         }
-        if ((0, core_1.isDistinctIdStringLike)(new_distinct_id)) {
-            logger_1.logger.critical("The string \"".concat(new_distinct_id, "\" was set in posthog.identify which indicates an error. This ID should be unique to the user and not a hardcoded string."));
+        if (isDistinctIdStringLike(new_distinct_id)) {
+            logger.critical(`The string "${new_distinct_id}" was set in posthog.identify which indicates an error. This ID should be unique to the user and not a hardcoded string.`);
             return;
         }
-        if (new_distinct_id === constants_1.COOKIELESS_SENTINEL_VALUE) {
-            logger_1.logger.critical("The string \"".concat(constants_1.COOKIELESS_SENTINEL_VALUE, "\" was set in posthog.identify which indicates an error. This ID is only used as a sentinel value."));
+        if (new_distinct_id === COOKIELESS_SENTINEL_VALUE) {
+            logger.critical(`The string "${COOKIELESS_SENTINEL_VALUE}" was set in posthog.identify which indicates an error. This ID is only used as a sentinel value.`);
             return;
         }
         if (!this._requirePersonProcessing('posthog.identify')) {
             return;
         }
-        var previous_distinct_id = this.get_distinct_id();
+        const previous_distinct_id = this.get_distinct_id();
         this.register({ $user_id: new_distinct_id });
         if (!this.get_property('$device_id')) {
             // The persisted distinct id might not actually be a device id at all
             // it might be a distinct id of the user from before
-            var device_id = previous_distinct_id;
+            const device_id = previous_distinct_id;
             this.register_once({
                 $had_persisted_distinct_id: true,
                 $device_id: device_id,
             }, '');
         }
         // if the previous distinct id had an alias stored, then we clear it
-        if (new_distinct_id !== previous_distinct_id && new_distinct_id !== this.get_property(constants_1.ALIAS_ID_KEY)) {
-            this.unregister(constants_1.ALIAS_ID_KEY);
+        if (new_distinct_id !== previous_distinct_id && new_distinct_id !== this.get_property(ALIAS_ID_KEY)) {
+            this.unregister(ALIAS_ID_KEY);
             this.register({ distinct_id: new_distinct_id });
         }
-        var isKnownAnonymous = (this.persistence.get_property(constants_1.USER_STATE) || 'anonymous') === 'anonymous';
+        const isKnownAnonymous = (this.persistence.get_property(USER_STATE) || 'anonymous') === 'anonymous';
         // send an $identify event any time the distinct_id is changing and the old ID is an anonymous ID
         // - logic on the server will determine whether or not to do anything with it.
         if (new_distinct_id !== previous_distinct_id && isKnownAnonymous) {
-            this.persistence.set_property(constants_1.USER_STATE, 'identified');
+            this.persistence.set_property(USER_STATE, 'identified');
             // Update current user properties
-            this.setPersonPropertiesForFlags(__assign(__assign({}, (userPropertiesToSetOnce || {})), (userPropertiesToSet || {})), false);
+            this.setPersonPropertiesForFlags({ ...(userPropertiesToSetOnce || {}), ...(userPropertiesToSet || {}) }, false);
             this.capture('$identify', {
                 distinct_id: new_distinct_id,
                 $anon_distinct_id: previous_distinct_id,
             }, { $set: userPropertiesToSet || {}, $set_once: userPropertiesToSetOnce || {} });
-            this._cachedPersonProperties = (0, property_utils_1.getPersonPropertiesHash)(new_distinct_id, userPropertiesToSet, userPropertiesToSetOnce);
+            this._cachedPersonProperties = getPersonPropertiesHash(new_distinct_id, userPropertiesToSet, userPropertiesToSetOnce);
             // let the reload feature flag request know to send this previous distinct id
             // for flag consistency
             this.featureFlags.setAnonymousDistinctId(previous_distinct_id);
@@ -1864,9 +1783,9 @@ var PostHog = /** @class */ (function () {
         if (new_distinct_id !== previous_distinct_id) {
             this.reloadFeatureFlags();
             // also clear any stored flag calls
-            this.unregister(constants_1.FLAG_CALL_REPORTED);
+            this.unregister(FLAG_CALL_REPORTED);
         }
-    };
+    }
     /**
      * Sets properties on the person profile associated with the current `distinct_id`.
      * Learn more about [identifying users](/docs/product-analytics/identify)
@@ -1901,24 +1820,24 @@ var PostHog = /** @class */ (function () {
      *  it will be overwritten by the value in userPropertiesToSet.
      * @param {Object} [userPropertiesToSetOnce] Optional: An associative array of properties to store about the user. If property is previously set, this does not override that value.
      */
-    PostHog.prototype.setPersonProperties = function (userPropertiesToSet, userPropertiesToSetOnce) {
+    setPersonProperties(userPropertiesToSet, userPropertiesToSetOnce) {
         if (!userPropertiesToSet && !userPropertiesToSetOnce) {
             return;
         }
         if (!this._requirePersonProcessing('posthog.setPersonProperties')) {
             return;
         }
-        var hash = (0, property_utils_1.getPersonPropertiesHash)(this.get_distinct_id(), userPropertiesToSet, userPropertiesToSetOnce);
+        const hash = getPersonPropertiesHash(this.get_distinct_id(), userPropertiesToSet, userPropertiesToSetOnce);
         // if exactly this $set call has been sent before, don't send it again - determine based on hash of properties
         if (this._cachedPersonProperties === hash) {
-            logger_1.logger.info('A duplicate setPersonProperties call was made with the same properties. It has been ignored.');
+            logger.info('A duplicate setPersonProperties call was made with the same properties. It has been ignored.');
             return;
         }
         // Update current user properties
-        this.setPersonPropertiesForFlags(__assign(__assign({}, (userPropertiesToSetOnce || {})), (userPropertiesToSet || {})));
+        this.setPersonPropertiesForFlags({ ...(userPropertiesToSetOnce || {}), ...(userPropertiesToSet || {}) });
         this.capture('$set', { $set: userPropertiesToSet || {}, $set_once: userPropertiesToSetOnce || {} });
         this._cachedPersonProperties = hash;
-    };
+    }
     /**
      * Associates the user with a group for group-based analytics.
      * Learn more about [groups](/docs/product-analytics/group-analytics)
@@ -1951,35 +1870,34 @@ var PostHog = /** @class */ (function () {
      * @param {String} groupKey Group key (example: 'org::5')
      * @param {Object} groupPropertiesToSet Optional properties to set for group
      */
-    PostHog.prototype.group = function (groupType, groupKey, groupPropertiesToSet) {
-        var _a, _b;
+    group(groupType, groupKey, groupPropertiesToSet) {
         if (!groupType || !groupKey) {
-            logger_1.logger.error('posthog.group requires a group type and group key');
+            logger.error('posthog.group requires a group type and group key');
             return;
         }
         if (!this._requirePersonProcessing('posthog.group')) {
             return;
         }
-        var existingGroups = this.getGroups();
+        const existingGroups = this.getGroups();
         // if group key changes, remove stored group properties
         if (existingGroups[groupType] !== groupKey) {
             this.resetGroupPropertiesForFlags(groupType);
         }
-        this.register({ $groups: __assign(__assign({}, existingGroups), (_a = {}, _a[groupType] = groupKey, _a)) });
+        this.register({ $groups: { ...existingGroups, [groupType]: groupKey } });
         if (groupPropertiesToSet) {
             this.capture('$groupidentify', {
                 $group_type: groupType,
                 $group_key: groupKey,
                 $group_set: groupPropertiesToSet,
             });
-            this.setGroupPropertiesForFlags((_b = {}, _b[groupType] = groupPropertiesToSet, _b));
+            this.setGroupPropertiesForFlags({ [groupType]: groupPropertiesToSet });
         }
         // If groups change and no properties change, reload feature flags.
         // The property change reload case is handled in setGroupPropertiesForFlags.
         if (existingGroups[groupType] !== groupKey && !groupPropertiesToSet) {
             this.reloadFeatureFlags();
         }
-    };
+    }
     /**
      * Resets only the group properties of the user currently logged in.
      * Learn more about [groups](/docs/product-analytics/group-analytics)
@@ -1993,12 +1911,12 @@ var PostHog = /** @class */ (function () {
      *
      * @public
      */
-    PostHog.prototype.resetGroups = function () {
+    resetGroups() {
         this.register({ $groups: {} });
         this.resetGroupPropertiesForFlags();
         // If groups changed, reload feature flags.
         this.reloadFeatureFlags();
-    };
+    }
     /**
      * Sometimes, you might want to evaluate feature flags using properties that haven't been ingested yet,
      * or were set incorrectly earlier. You can do so by setting properties the flag depends on with these calls:
@@ -2022,10 +1940,9 @@ var PostHog = /** @class */ (function () {
      * @param {Object} properties The properties to override.
      * @param {Boolean} [reloadFeatureFlags] Whether to reload feature flags.
      */
-    PostHog.prototype.setPersonPropertiesForFlags = function (properties, reloadFeatureFlags) {
-        if (reloadFeatureFlags === void 0) { reloadFeatureFlags = true; }
+    setPersonPropertiesForFlags(properties, reloadFeatureFlags = true) {
         this.featureFlags.setPersonPropertiesForFlags(properties, reloadFeatureFlags);
-    };
+    }
     /**
      * Resets the person properties for feature flags.
      *
@@ -2038,9 +1955,9 @@ var PostHog = /** @class */ (function () {
      * posthog.resetPersonPropertiesForFlags()
      * ```
      */
-    PostHog.prototype.resetPersonPropertiesForFlags = function () {
+    resetPersonPropertiesForFlags() {
         this.featureFlags.resetPersonPropertiesForFlags();
-    };
+    }
     /**
      * Set override group properties for feature flags.
      * This is used when dealing with new groups / where you don't want to wait for ingestion
@@ -2066,13 +1983,12 @@ var PostHog = /** @class */ (function () {
      * @param {Object} properties The properties to override, the key of which is the group type.
      * @param {Boolean} [reloadFeatureFlags] Whether to reload feature flags.
      */
-    PostHog.prototype.setGroupPropertiesForFlags = function (properties, reloadFeatureFlags) {
-        if (reloadFeatureFlags === void 0) { reloadFeatureFlags = true; }
+    setGroupPropertiesForFlags(properties, reloadFeatureFlags = true) {
         if (!this._requirePersonProcessing('posthog.setGroupPropertiesForFlags')) {
             return;
         }
         this.featureFlags.setGroupPropertiesForFlags(properties, reloadFeatureFlags);
-    };
+    }
     /**
      * Resets the group properties for feature flags.
      *
@@ -2085,9 +2001,9 @@ var PostHog = /** @class */ (function () {
      * posthog.resetGroupPropertiesForFlags()
      * ```
      */
-    PostHog.prototype.resetGroupPropertiesForFlags = function (group_type) {
+    resetGroupPropertiesForFlags(group_type) {
         this.featureFlags.resetGroupPropertiesForFlags(group_type);
-    };
+    }
     /**
      * Resets all user data and starts a fresh session.
      *
@@ -2116,29 +2032,29 @@ var PostHog = /** @class */ (function () {
      *
      * @public
      */
-    PostHog.prototype.reset = function (reset_device_id) {
+    reset(reset_device_id) {
         var _a, _b, _c, _d;
-        logger_1.logger.info('reset');
+        logger.info('reset');
         if (!this.__loaded) {
-            return logger_1.logger.uninitializedWarning('posthog.reset');
+            return logger.uninitializedWarning('posthog.reset');
         }
-        var device_id = this.get_property('$device_id');
+        const device_id = this.get_property('$device_id');
         this.consent.reset();
         (_a = this.persistence) === null || _a === void 0 ? void 0 : _a.clear();
         (_b = this.sessionPersistence) === null || _b === void 0 ? void 0 : _b.clear();
         this.surveys.reset();
         this.featureFlags.reset();
-        (_c = this.persistence) === null || _c === void 0 ? void 0 : _c.set_property(constants_1.USER_STATE, 'anonymous');
+        (_c = this.persistence) === null || _c === void 0 ? void 0 : _c.set_property(USER_STATE, 'anonymous');
         (_d = this.sessionManager) === null || _d === void 0 ? void 0 : _d.resetSessionId();
         this._cachedPersonProperties = null;
         if (this.config.cookieless_mode === 'always') {
             this.register_once({
-                distinct_id: constants_1.COOKIELESS_SENTINEL_VALUE,
+                distinct_id: COOKIELESS_SENTINEL_VALUE,
                 $device_id: null,
             }, '');
         }
         else {
-            var uuid = this.config.get_device_id((0, uuidv7_1.uuidv7)());
+            const uuid = this.config.get_device_id(uuidv7());
             this.register_once({
                 distinct_id: uuid,
                 $device_id: reset_device_id ? uuid : device_id,
@@ -2147,7 +2063,7 @@ var PostHog = /** @class */ (function () {
         this.register({
             $last_posthog_reset: new Date().toISOString(),
         }, 1);
-    };
+    }
     /**
      * Returns the current distinct ID for the user.
      *
@@ -2179,9 +2095,9 @@ var PostHog = /** @class */ (function () {
      *
      * @returns The current distinct ID
      */
-    PostHog.prototype.get_distinct_id = function () {
+    get_distinct_id() {
         return this.get_property('distinct_id');
-    };
+    }
     /**
      * Returns the current groups.
      *
@@ -2191,9 +2107,9 @@ var PostHog = /** @class */ (function () {
      *
      * @returns The current groups
      */
-    PostHog.prototype.getGroups = function () {
+    getGroups() {
         return this.get_property('$groups') || {};
-    };
+    }
     /**
      * Returns the current session_id.
      *
@@ -2205,10 +2121,10 @@ var PostHog = /** @class */ (function () {
      *
      * @returns The stored session ID for the current session. This may be an empty string if the client is not yet fully initialized.
      */
-    PostHog.prototype.get_session_id = function () {
+    get_session_id() {
         var _a, _b;
         return (_b = (_a = this.sessionManager) === null || _a === void 0 ? void 0 : _a.checkAndGetSessionAndWindowId(true).sessionId) !== null && _b !== void 0 ? _b : '';
-    };
+    }
     /**
      * Returns the Replay url for the current session.
      *
@@ -2240,23 +2156,23 @@ var PostHog = /** @class */ (function () {
      * @param options.withTimestamp Whether to include the timestamp in the url (defaults to false)
      * @param options.timestampLookBack How many seconds to look back for the timestamp (defaults to 10)
      */
-    PostHog.prototype.get_session_replay_url = function (options) {
+    get_session_replay_url(options) {
         var _a;
         if (!this.sessionManager) {
             return '';
         }
-        var _b = this.sessionManager.checkAndGetSessionAndWindowId(true), sessionId = _b.sessionId, sessionStartTimestamp = _b.sessionStartTimestamp;
-        var url = this.requestRouter.endpointFor('ui', "/project/".concat(this.config.token, "/replay/").concat(sessionId));
+        const { sessionId, sessionStartTimestamp } = this.sessionManager.checkAndGetSessionAndWindowId(true);
+        let url = this.requestRouter.endpointFor('ui', `/project/${this.config.token}/replay/${sessionId}`);
         if ((options === null || options === void 0 ? void 0 : options.withTimestamp) && sessionStartTimestamp) {
-            var LOOK_BACK = (_a = options.timestampLookBack) !== null && _a !== void 0 ? _a : 10;
+            const LOOK_BACK = (_a = options.timestampLookBack) !== null && _a !== void 0 ? _a : 10;
             if (!sessionStartTimestamp) {
                 return url;
             }
-            var recordingStartTime = Math.max(Math.floor((new Date().getTime() - sessionStartTimestamp) / 1000) - LOOK_BACK, 0);
-            url += "?t=".concat(recordingStartTime);
+            const recordingStartTime = Math.max(Math.floor((new Date().getTime() - sessionStartTimestamp) / 1000) - LOOK_BACK, 0);
+            url += `?t=${recordingStartTime}`;
         }
         return url;
-    };
+    }
     /**
      * Creates an alias linking two distinct user identifiers. Learn more about [identifying users](/docs/product-analytics/identify)
      *
@@ -2284,30 +2200,30 @@ var PostHog = /** @class */ (function () {
      * @param {String} alias A unique identifier that you want to use for this user in the future.
      * @param {String} [original] The current identifier being used for this user.
      */
-    PostHog.prototype.alias = function (alias, original) {
+    alias(alias, original) {
         // If the $people_distinct_id key exists in persistence, there has been a previous
         // posthog.people.identify() call made for this user. It is VERY BAD to make an alias with
         // this ID, as it will duplicate users.
-        if (alias === this.get_property(constants_1.PEOPLE_DISTINCT_ID_KEY)) {
-            logger_1.logger.critical('Attempting to create alias for existing People user - aborting.');
+        if (alias === this.get_property(PEOPLE_DISTINCT_ID_KEY)) {
+            logger.critical('Attempting to create alias for existing People user - aborting.');
             return -2;
         }
         if (!this._requirePersonProcessing('posthog.alias')) {
             return;
         }
-        if ((0, core_1.isUndefined)(original)) {
+        if (isUndefined(original)) {
             original = this.get_distinct_id();
         }
         if (alias !== original) {
-            this._register_single(constants_1.ALIAS_ID_KEY, alias);
+            this._register_single(ALIAS_ID_KEY, alias);
             return this.capture('$create_alias', { alias: alias, distinct_id: original });
         }
         else {
-            logger_1.logger.warn('alias matches current distinct_id - skipping api call.');
+            logger.warn('alias matches current distinct_id - skipping api call.');
             this.identify(alias);
             return -1;
         }
-    };
+    }
     /**
      * Updates the configuration of the PostHog instance.
      *
@@ -2317,34 +2233,34 @@ var PostHog = /** @class */ (function () {
      *
      * @param {Partial<PostHogConfig>} config A dictionary of new configuration values to update
      */
-    PostHog.prototype.set_config = function (config) {
+    set_config(config) {
         var _a, _b, _c, _d, _e;
-        var oldConfig = __assign({}, this.config);
-        if ((0, core_1.isObject)(config)) {
-            (0, utils_1.extend)(this.config, (0, exports.configRenames)(config));
-            var isPersistenceDisabled = this._is_persistence_disabled();
+        const oldConfig = { ...this.config };
+        if (isObject(config)) {
+            extend(this.config, configRenames(config));
+            const isPersistenceDisabled = this._is_persistence_disabled();
             (_a = this.persistence) === null || _a === void 0 ? void 0 : _a.update_config(this.config, oldConfig, isPersistenceDisabled);
             this.sessionPersistence =
                 this.config.persistence === 'sessionStorage' || this.config.persistence === 'memory'
                     ? this.persistence
-                    : new posthog_persistence_1.PostHogPersistence(__assign(__assign({}, this.config), { persistence: 'sessionStorage' }), isPersistenceDisabled);
-            var debugConfigFromLocalStorage = this._checkLocalStorageForDebug(this.config.debug);
-            if ((0, core_1.isBoolean)(debugConfigFromLocalStorage)) {
+                    : new PostHogPersistence({ ...this.config, persistence: 'sessionStorage' }, isPersistenceDisabled);
+            const debugConfigFromLocalStorage = this._checkLocalStorageForDebug(this.config.debug);
+            if (isBoolean(debugConfigFromLocalStorage)) {
                 this.config.debug = debugConfigFromLocalStorage;
             }
-            if ((0, core_1.isBoolean)(this.config.debug)) {
+            if (isBoolean(this.config.debug)) {
                 if (this.config.debug) {
-                    config_1.default.DEBUG = true;
-                    storage_1.localStore._is_supported() && storage_1.localStore._set('ph_debug', 'true');
-                    logger_1.logger.info('set_config', {
-                        config: config,
-                        oldConfig: oldConfig,
-                        newConfig: __assign({}, this.config),
+                    Config.DEBUG = true;
+                    localStore._is_supported() && localStore._set('ph_debug', 'true');
+                    logger.info('set_config', {
+                        config,
+                        oldConfig,
+                        newConfig: { ...this.config },
                     });
                 }
                 else {
-                    config_1.default.DEBUG = false;
-                    storage_1.localStore._is_supported() && storage_1.localStore._remove('ph_debug');
+                    Config.DEBUG = false;
+                    localStore._is_supported() && localStore._remove('ph_debug');
                 }
             }
             (_b = this.sessionRecording) === null || _b === void 0 ? void 0 : _b.startIfEnabledOrStop();
@@ -2354,7 +2270,7 @@ var PostHog = /** @class */ (function () {
             this._sync_opt_out_with_persistence();
             (_e = this.externalIntegrations) === null || _e === void 0 ? void 0 : _e.startIfEnabledOrStop();
         }
-    };
+    }
     /**
      * turns session recording on, and updates the config option `disable_session_recording` to false
      *
@@ -2386,10 +2302,10 @@ var PostHog = /** @class */ (function () {
      * @param override.event_trigger - optional boolean to override the default event_trigger behavior - ensures the next session recording to start will not be skipped by event_trigger config.
      * @param override - optional boolean to override the default sampling behavior - ensures the next session recording to start will not be skipped by sampling or linked_flag config. `true` is shorthand for { sampling: true, linked_flag: true }
      */
-    PostHog.prototype.startSessionRecording = function (override) {
+    startSessionRecording(override) {
         var _a, _b, _c, _d, _e;
-        var overrideAll = override === true;
-        var overrideConfig = {
+        const overrideAll = override === true;
+        const overrideConfig = {
             sampling: overrideAll || !!(override === null || override === void 0 ? void 0 : override.sampling),
             linked_flag: overrideAll || !!(override === null || override === void 0 ? void 0 : override.linked_flag),
             url_trigger: overrideAll || !!(override === null || override === void 0 ? void 0 : override.url_trigger),
@@ -2412,7 +2328,7 @@ var PostHog = /** @class */ (function () {
             }
         }
         this.set_config({ disable_session_recording: false });
-    };
+    }
     /**
      * turns session recording off, and updates the config option
      * disable_session_recording to true
@@ -2427,9 +2343,9 @@ var PostHog = /** @class */ (function () {
      * posthog.stopSessionRecording()
      * ```
      */
-    PostHog.prototype.stopSessionRecording = function () {
+    stopSessionRecording() {
         this.set_config({ disable_session_recording: true });
-    };
+    }
     /**
      * returns a boolean indicating whether session recording
      * is currently running
@@ -2446,10 +2362,10 @@ var PostHog = /** @class */ (function () {
      * }
      * ```
      */
-    PostHog.prototype.sessionRecordingStarted = function () {
+    sessionRecordingStarted() {
         var _a;
         return !!((_a = this.sessionRecording) === null || _a === void 0 ? void 0 : _a.started);
-    };
+    }
     /**
      * Capture a caught exception manually
      *
@@ -2481,14 +2397,17 @@ var PostHog = /** @class */ (function () {
      * @param {Object} [additionalProperties] Any additional properties to add to the error event
      * @returns {CaptureResult} The result of the capture
      */
-    PostHog.prototype.captureException = function (error, additionalProperties) {
-        var syntheticException = new Error('PostHog syntheticException');
-        var errorToProperties = this.exceptions.buildProperties(error, {
+    captureException(error, additionalProperties) {
+        const syntheticException = new Error('PostHog syntheticException');
+        const errorToProperties = this.exceptions.buildProperties(error, {
             handled: true,
-            syntheticException: syntheticException,
+            syntheticException,
         });
-        return this.exceptions.sendExceptionEvent(__assign(__assign({}, errorToProperties), additionalProperties));
-    };
+        return this.exceptions.sendExceptionEvent({
+            ...errorToProperties,
+            ...additionalProperties,
+        });
+    }
     /**
      * returns a boolean indicating whether the [toolbar](/docs/toolbar) loaded
      *
@@ -2499,9 +2418,9 @@ var PostHog = /** @class */ (function () {
      * @param toolbarParams
      * @returns {boolean} Whether the toolbar loaded
      */
-    PostHog.prototype.loadToolbar = function (params) {
+    loadToolbar(params) {
         return this.toolbar.loadToolbar(params);
-    };
+    }
     /**
      * Returns the value of a super property. Returns undefined if the property doesn't exist.
      *
@@ -2524,10 +2443,10 @@ var PostHog = /** @class */ (function () {
      *
      * @param {String} property_name The name of the super property you want to retrieve
      */
-    PostHog.prototype.get_property = function (property_name) {
+    get_property(property_name) {
         var _a;
         return (_a = this.persistence) === null || _a === void 0 ? void 0 : _a.props[property_name];
-    };
+    }
     /**
      * Returns the value of the session super property named property_name. If no such
      * property is set, getSessionProperty() will return the undefined value.
@@ -2551,10 +2470,10 @@ var PostHog = /** @class */ (function () {
      *
      * @param {String} property_name The name of the session super property you want to retrieve
      */
-    PostHog.prototype.getSessionProperty = function (property_name) {
+    getSessionProperty(property_name) {
         var _a;
         return (_a = this.sessionPersistence) === null || _a === void 0 ? void 0 : _a.props[property_name];
-    };
+    }
     /**
      * Returns a string representation of the PostHog instance.
      *
@@ -2562,33 +2481,33 @@ var PostHog = /** @class */ (function () {
      *
      * @internal
      */
-    PostHog.prototype.toString = function () {
+    toString() {
         var _a;
-        var name = (_a = this.config.name) !== null && _a !== void 0 ? _a : PRIMARY_INSTANCE_NAME;
+        let name = (_a = this.config.name) !== null && _a !== void 0 ? _a : PRIMARY_INSTANCE_NAME;
         if (name !== PRIMARY_INSTANCE_NAME) {
             name = PRIMARY_INSTANCE_NAME + '.' + name;
         }
         return name;
-    };
-    PostHog.prototype._isIdentified = function () {
+    }
+    _isIdentified() {
         var _a, _b;
-        return (((_a = this.persistence) === null || _a === void 0 ? void 0 : _a.get_property(constants_1.USER_STATE)) === 'identified' ||
-            ((_b = this.sessionPersistence) === null || _b === void 0 ? void 0 : _b.get_property(constants_1.USER_STATE)) === 'identified');
-    };
-    PostHog.prototype._hasPersonProcessing = function () {
+        return (((_a = this.persistence) === null || _a === void 0 ? void 0 : _a.get_property(USER_STATE)) === 'identified' ||
+            ((_b = this.sessionPersistence) === null || _b === void 0 ? void 0 : _b.get_property(USER_STATE)) === 'identified');
+    }
+    _hasPersonProcessing() {
         var _a, _b, _c, _d;
         return !(this.config.person_profiles === 'never' ||
             (this.config.person_profiles === 'identified_only' &&
                 !this._isIdentified() &&
-                (0, core_1.isEmptyObject)(this.getGroups()) &&
-                !((_b = (_a = this.persistence) === null || _a === void 0 ? void 0 : _a.props) === null || _b === void 0 ? void 0 : _b[constants_1.ALIAS_ID_KEY]) &&
-                !((_d = (_c = this.persistence) === null || _c === void 0 ? void 0 : _c.props) === null || _d === void 0 ? void 0 : _d[constants_1.ENABLE_PERSON_PROCESSING])));
-    };
-    PostHog.prototype._shouldCapturePageleave = function () {
+                isEmptyObject(this.getGroups()) &&
+                !((_b = (_a = this.persistence) === null || _a === void 0 ? void 0 : _a.props) === null || _b === void 0 ? void 0 : _b[ALIAS_ID_KEY]) &&
+                !((_d = (_c = this.persistence) === null || _c === void 0 ? void 0 : _c.props) === null || _d === void 0 ? void 0 : _d[ENABLE_PERSON_PROCESSING])));
+    }
+    _shouldCapturePageleave() {
         return (this.config.capture_pageleave === true ||
             (this.config.capture_pageleave === 'if_capture_pageview' &&
                 (this.config.capture_pageview === true || this.config.capture_pageview === 'history_change')));
-    };
+    }
     /**
      *  Creates a person profile for the current user, if they don't already have one and config.person_profiles is set
      *  to 'identified_only'. Produces a warning and does not create a profile if config.person_profiles is set to
@@ -2603,7 +2522,7 @@ var PostHog = /** @class */ (function () {
      * posthog.createPersonProfile()
      * ```
      */
-    PostHog.prototype.createPersonProfile = function () {
+    createPersonProfile() {
         if (this._hasPersonProcessing()) {
             // if a person profile already exists, don't send an event when we don't need to
             return;
@@ -2613,32 +2532,32 @@ var PostHog = /** @class */ (function () {
         }
         // sent a $set event. We don't set any properties here, but attribution props will be added later
         this.setPersonProperties({}, {});
-    };
+    }
     /**
      * Enables person processing if possible, returns true if it does so or already enabled, false otherwise
      *
      * @param function_name
      */
-    PostHog.prototype._requirePersonProcessing = function (function_name) {
+    _requirePersonProcessing(function_name) {
         if (this.config.person_profiles === 'never') {
-            logger_1.logger.error(function_name + ' was called, but process_person is set to "never". This call will be ignored.');
+            logger.error(function_name + ' was called, but process_person is set to "never". This call will be ignored.');
             return false;
         }
-        this._register_single(constants_1.ENABLE_PERSON_PROCESSING, true);
+        this._register_single(ENABLE_PERSON_PROCESSING, true);
         return true;
-    };
-    PostHog.prototype._is_persistence_disabled = function () {
+    }
+    _is_persistence_disabled() {
         if (this.config.cookieless_mode === 'always') {
             return true;
         }
-        var isOptedOut = this.consent.isOptedOut();
-        var defaultPersistenceDisabled = this.config.opt_out_persistence_by_default || this.config.cookieless_mode === 'on_reject';
+        const isOptedOut = this.consent.isOptedOut();
+        const defaultPersistenceDisabled = this.config.opt_out_persistence_by_default || this.config.cookieless_mode === 'on_reject';
         // TRICKY: We want a deterministic state for persistence so that a new pageload has the same persistence
         return this.config.disable_persistence || (isOptedOut && !!defaultPersistenceDisabled);
-    };
-    PostHog.prototype._sync_opt_out_with_persistence = function () {
+    }
+    _sync_opt_out_with_persistence() {
         var _a, _b, _c, _d;
-        var persistenceDisabled = this._is_persistence_disabled();
+        const persistenceDisabled = this._is_persistence_disabled();
         if (((_a = this.persistence) === null || _a === void 0 ? void 0 : _a._disabled) !== persistenceDisabled) {
             (_b = this.persistence) === null || _b === void 0 ? void 0 : _b.set_disabled(persistenceDisabled);
         }
@@ -2646,7 +2565,7 @@ var PostHog = /** @class */ (function () {
             (_d = this.sessionPersistence) === null || _d === void 0 ? void 0 : _d.set_disabled(persistenceDisabled);
         }
         return persistenceDisabled;
-    };
+    }
     /**
      * Opts the user into data capturing and persistence.
      *
@@ -2685,10 +2604,10 @@ var PostHog = /** @class */ (function () {
      * @param {string} [config.capture_event_name=$opt_in] Event name to be used for capturing the opt-in action. Set to `null` or `false` to skip capturing the optin event
      * @param {Object} [config.capture_properties] Set of properties to be captured along with the opt-in action
      */
-    PostHog.prototype.opt_in_capturing = function (options) {
+    opt_in_capturing(options) {
         var _a, _b;
         if (this.config.cookieless_mode === 'always') {
-            logger_1.logger.warn('Consent opt in/out is not valid with cookieless_mode="always" and will be ignored');
+            logger.warn('Consent opt in/out is not valid with cookieless_mode="always" and will be ignored');
             return;
         }
         if (this.config.cookieless_mode === 'on_reject' && this.consent.isExplicitlyOptedOut()) {
@@ -2696,11 +2615,11 @@ var PostHog = /** @class */ (function () {
             // we need to reset the instance to ensure that there is no leaking of state or data between the cookieless and regular events
             this.reset(true);
             (_a = this.sessionManager) === null || _a === void 0 ? void 0 : _a.destroy();
-            this.sessionManager = new sessionid_1.SessionIdManager(this);
+            this.sessionManager = new SessionIdManager(this);
             if (this.persistence) {
-                this.sessionPropsManager = new session_props_1.SessionPropsManager(this, this.sessionManager, this.persistence);
+                this.sessionPropsManager = new SessionPropsManager(this, this.sessionManager, this.persistence);
             }
-            this.sessionRecording = new session_recording_1.SessionRecording(this);
+            this.sessionRecording = new SessionRecording(this);
             this.sessionRecording.startIfEnabledOrStop();
         }
         this.consent.optInOut(true);
@@ -2712,13 +2631,13 @@ var PostHog = /** @class */ (function () {
             this.surveys.loadIfEnabled();
         }
         // Don't capture if captureEventName is null or false
-        if ((0, core_1.isUndefined)(options === null || options === void 0 ? void 0 : options.captureEventName) || (options === null || options === void 0 ? void 0 : options.captureEventName)) {
+        if (isUndefined(options === null || options === void 0 ? void 0 : options.captureEventName) || (options === null || options === void 0 ? void 0 : options.captureEventName)) {
             this.capture((_b = options === null || options === void 0 ? void 0 : options.captureEventName) !== null && _b !== void 0 ? _b : '$opt_in', options === null || options === void 0 ? void 0 : options.captureProperties, { send_instantly: true });
         }
         if (this.config.capture_pageview) {
             this._captureInitialPageview();
         }
-    };
+    }
     /**
      * Opts the user out of data capturing and persistence.
      *
@@ -2736,10 +2655,10 @@ var PostHog = /** @class */ (function () {
      *
      * @public
      */
-    PostHog.prototype.opt_out_capturing = function () {
+    opt_out_capturing() {
         var _a, _b;
         if (this.config.cookieless_mode === 'always') {
-            logger_1.logger.warn('Consent opt in/out is not valid with cookieless_mode="always" and will be ignored');
+            logger.warn('Consent opt in/out is not valid with cookieless_mode="always" and will be ignored');
             return;
         }
         if (this.config.cookieless_mode === 'on_reject' && this.consent.isOptedIn()) {
@@ -2751,7 +2670,7 @@ var PostHog = /** @class */ (function () {
         if (this.config.cookieless_mode === 'on_reject') {
             // If cookieless_mode is 'on_reject', we start capturing events in cookieless mode
             this.register({
-                distinct_id: constants_1.COOKIELESS_SENTINEL_VALUE,
+                distinct_id: COOKIELESS_SENTINEL_VALUE,
                 $device_id: null,
             });
             (_a = this.sessionManager) === null || _a === void 0 ? void 0 : _a.destroy();
@@ -2761,7 +2680,7 @@ var PostHog = /** @class */ (function () {
             this.sessionRecording = undefined;
             this._captureInitialPageview();
         }
-    };
+    }
     /**
      * Checks if the user has opted into data capturing.
      *
@@ -2781,9 +2700,9 @@ var PostHog = /** @class */ (function () {
      *
      * @returns {boolean} current opt-in status
      */
-    PostHog.prototype.has_opted_in_capturing = function () {
+    has_opted_in_capturing() {
         return this.consent.isOptedIn();
-    };
+    }
     /**
      * Checks if the user has opted out of data capturing.
      *
@@ -2803,9 +2722,9 @@ var PostHog = /** @class */ (function () {
      *
      * @returns {boolean} current opt-out status
      */
-    PostHog.prototype.has_opted_out_capturing = function () {
+    has_opted_out_capturing() {
         return this.consent.isOptedOut();
-    };
+    }
     /**
      * Returns the explicit consent status of the user.
      *
@@ -2830,10 +2749,10 @@ var PostHog = /** @class */ (function () {
      *
      * @returns {boolean | null} current explicit consent status
      */
-    PostHog.prototype.get_explicit_consent_status = function () {
-        var consent = this.consent.consent;
-        return consent === consent_1.ConsentStatus.GRANTED ? 'granted' : consent === consent_1.ConsentStatus.DENIED ? 'denied' : 'pending';
-    };
+    get_explicit_consent_status() {
+        const consent = this.consent.consent;
+        return consent === ConsentStatus.GRANTED ? 'granted' : consent === ConsentStatus.DENIED ? 'denied' : 'pending';
+    }
     /**
      * Checks whether the PostHog library is currently capturing events.
      *
@@ -2851,7 +2770,7 @@ var PostHog = /** @class */ (function () {
      *
      * @returns {boolean} whether the posthog library is capturing events
      */
-    PostHog.prototype.is_capturing = function () {
+    is_capturing() {
         if (this.config.cookieless_mode === 'always') {
             return true;
         }
@@ -2861,7 +2780,7 @@ var PostHog = /** @class */ (function () {
         else {
             return !this.has_opted_out_capturing();
         }
-    };
+    }
     /**
      * Clear the user's opt in/out status of data capturing and cookies/localstorage for this PostHog instance
      *
@@ -2870,44 +2789,44 @@ var PostHog = /** @class */ (function () {
      * @public
      *
      */
-    PostHog.prototype.clear_opt_in_out_capturing = function () {
+    clear_opt_in_out_capturing() {
         this.consent.reset();
         this._sync_opt_out_with_persistence();
-    };
-    PostHog.prototype._is_bot = function () {
-        if (globals_1.navigator) {
-            return (0, blocked_uas_1.isLikelyBot)(globals_1.navigator, this.config.custom_blocked_useragents);
+    }
+    _is_bot() {
+        if (navigator) {
+            return isLikelyBot(navigator, this.config.custom_blocked_useragents);
         }
         else {
             return undefined;
         }
-    };
-    PostHog.prototype._captureInitialPageview = function () {
-        if (!globals_1.document) {
+    }
+    _captureInitialPageview() {
+        if (!document) {
             return;
         }
         // If page is not visible, add a listener to detect when the page becomes visible
         // and trigger the pageview only then
         // This is useful to avoid `prerender` calls from Chrome/Wordpress/SPAs
         // that are not visible to the user
-        if (globals_1.document.visibilityState !== 'visible') {
+        if (document.visibilityState !== 'visible') {
             if (!this._visibilityStateListener) {
                 this._visibilityStateListener = this._captureInitialPageview.bind(this);
-                (0, utils_1.addEventListener)(globals_1.document, 'visibilitychange', this._visibilityStateListener);
+                addEventListener(document, 'visibilitychange', this._visibilityStateListener);
             }
             return;
         }
         // Extra check here to guarantee we only ever trigger a single `$pageview` event
         if (!this._initialPageviewCaptured) {
             this._initialPageviewCaptured = true;
-            this.capture('$pageview', { title: globals_1.document.title }, { send_instantly: true });
+            this.capture('$pageview', { title: document.title }, { send_instantly: true });
             // After we've captured the initial pageview, we can remove the listener
             if (this._visibilityStateListener) {
-                globals_1.document.removeEventListener('visibilitychange', this._visibilityStateListener);
+                document.removeEventListener('visibilitychange', this._visibilityStateListener);
                 this._visibilityStateListener = null;
             }
         }
-    };
+    }
     /**
      * Enables or disables debug mode for detailed logging.
      *
@@ -2933,23 +2852,23 @@ var PostHog = /** @class */ (function () {
      *
      * @param {boolean} [debug] If true, will enable debug mode.
      */
-    PostHog.prototype.debug = function (debug) {
+    debug(debug) {
         if (debug === false) {
-            globals_1.window === null || globals_1.window === void 0 ? void 0 : globals_1.window.console.log("You've disabled debug mode.");
+            window === null || window === void 0 ? void 0 : window.console.log("You've disabled debug mode.");
             this.set_config({ debug: false });
         }
         else {
-            globals_1.window === null || globals_1.window === void 0 ? void 0 : globals_1.window.console.log("You're now in debug mode. All calls to PostHog will be logged in your console.\nYou can disable this with `posthog.debug(false)`.");
+            window === null || window === void 0 ? void 0 : window.console.log("You're now in debug mode. All calls to PostHog will be logged in your console.\nYou can disable this with `posthog.debug(false)`.");
             this.set_config({ debug: true });
         }
-    };
+    }
     /**
      * Helper method to check if external API calls (flags/decide) should be disabled
      * Handles migration from old `advanced_disable_decide` to new `advanced_disable_flags`
      */
-    PostHog.prototype._shouldDisableFlags = function () {
+    _shouldDisableFlags() {
         // Check if advanced_disable_flags was explicitly set in original config
-        var originalConfig = this._originalUserConfig || {};
+        const originalConfig = this._originalUserConfig || {};
         if ('advanced_disable_flags' in originalConfig) {
             return !!originalConfig.advanced_disable_flags;
         }
@@ -2959,48 +2878,37 @@ var PostHog = /** @class */ (function () {
         }
         // Check for post-init changes to advanced_disable_decide
         if (this.config.advanced_disable_decide === true) {
-            logger_1.logger.warn("Config field 'advanced_disable_decide' is deprecated. Please use 'advanced_disable_flags' instead. " +
+            logger.warn("Config field 'advanced_disable_decide' is deprecated. Please use 'advanced_disable_flags' instead. " +
                 'The old field will be removed in a future major version.');
             return true;
         }
         // Fall back to migration logic for original user config
-        return (0, utils_1.migrateConfigField)(originalConfig, 'advanced_disable_flags', 'advanced_disable_decide', false, logger_1.logger);
-    };
-    PostHog.prototype._runBeforeSend = function (data) {
-        var e_1, _a;
-        if ((0, core_1.isNullish)(this.config.before_send)) {
+        return migrateConfigField(originalConfig, 'advanced_disable_flags', 'advanced_disable_decide', false, logger);
+    }
+    _runBeforeSend(data) {
+        if (isNullish(this.config.before_send)) {
             return data;
         }
-        var fns = (0, core_1.isArray)(this.config.before_send) ? this.config.before_send : [this.config.before_send];
-        var beforeSendResult = data;
-        try {
-            for (var fns_1 = __values(fns), fns_1_1 = fns_1.next(); !fns_1_1.done; fns_1_1 = fns_1.next()) {
-                var fn = fns_1_1.value;
-                beforeSendResult = fn(beforeSendResult);
-                if ((0, core_1.isNullish)(beforeSendResult)) {
-                    var logMessage = "Event '".concat(data.event, "' was rejected in beforeSend function");
-                    if ((0, core_1.isKnownUnsafeEditableEvent)(data.event)) {
-                        logger_1.logger.warn("".concat(logMessage, ". This can cause unexpected behavior."));
-                    }
-                    else {
-                        logger_1.logger.info(logMessage);
-                    }
-                    return null;
+        const fns = isArray(this.config.before_send) ? this.config.before_send : [this.config.before_send];
+        let beforeSendResult = data;
+        for (const fn of fns) {
+            beforeSendResult = fn(beforeSendResult);
+            if (isNullish(beforeSendResult)) {
+                const logMessage = `Event '${data.event}' was rejected in beforeSend function`;
+                if (isKnownUnsafeEditableEvent(data.event)) {
+                    logger.warn(`${logMessage}. This can cause unexpected behavior.`);
                 }
-                if (!beforeSendResult.properties || (0, core_1.isEmptyObject)(beforeSendResult.properties)) {
-                    logger_1.logger.warn("Event '".concat(data.event, "' has no properties after beforeSend function, this is likely an error."));
+                else {
+                    logger.info(logMessage);
                 }
+                return null;
             }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (fns_1_1 && !fns_1_1.done && (_a = fns_1.return)) _a.call(fns_1);
+            if (!beforeSendResult.properties || isEmptyObject(beforeSendResult.properties)) {
+                logger.warn(`Event '${data.event}' has no properties after beforeSend function, this is likely an error.`);
             }
-            finally { if (e_1) throw e_1.error; }
         }
         return beforeSendResult;
-    };
+    }
     /**
      * Returns the current page view ID.
      *
@@ -3010,10 +2918,10 @@ var PostHog = /** @class */ (function () {
      *
      * @returns {string} The current page view ID
      */
-    PostHog.prototype.getPageViewId = function () {
+    getPageViewId() {
         var _a;
         return (_a = this.pageViewManager._currentPageview) === null || _a === void 0 ? void 0 : _a.pageViewId;
-    };
+    }
     /**
      * Capture written user feedback for a LLM trace. Numeric values are converted to strings.
      *
@@ -3024,12 +2932,12 @@ var PostHog = /** @class */ (function () {
      * @param traceId The trace ID to capture feedback for.
      * @param userFeedback The feedback to capture.
      */
-    PostHog.prototype.captureTraceFeedback = function (traceId, userFeedback) {
+    captureTraceFeedback(traceId, userFeedback) {
         this.capture('$ai_feedback', {
             $ai_trace_id: String(traceId),
             $ai_feedback_text: userFeedback,
         });
-    };
+    }
     /**
      * Capture a metric for a LLM trace. Numeric values are converted to strings.
      *
@@ -3041,23 +2949,21 @@ var PostHog = /** @class */ (function () {
      * @param metricName The name of the metric to capture.
      * @param metricValue The value of the metric to capture.
      */
-    PostHog.prototype.captureTraceMetric = function (traceId, metricName, metricValue) {
+    captureTraceMetric(traceId, metricName, metricValue) {
         this.capture('$ai_metric', {
             $ai_trace_id: String(traceId),
             $ai_metric_name: metricName,
             $ai_metric_value: String(metricValue),
         });
-    };
-    PostHog.prototype._checkLocalStorageForDebug = function (debugConfig) {
-        var explicitlyFalse = (0, core_1.isBoolean)(debugConfig) && !debugConfig;
-        var isTrueInLocalStorage = storage_1.localStore._is_supported() && storage_1.localStore._get('ph_debug') === 'true';
+    }
+    _checkLocalStorageForDebug(debugConfig) {
+        const explicitlyFalse = isBoolean(debugConfig) && !debugConfig;
+        const isTrueInLocalStorage = localStore._is_supported() && localStore._get('ph_debug') === 'true';
         return explicitlyFalse ? false : isTrueInLocalStorage ? true : debugConfig;
-    };
-    return PostHog;
-}());
-exports.PostHog = PostHog;
-(0, utils_1.safewrapClass)(PostHog, ['identify']);
-var add_dom_loaded_handler = function () {
+    }
+}
+safewrapClass(PostHog, ['identify']);
+const add_dom_loaded_handler = function () {
     // Cross browser DOM Loaded support
     function dom_loaded_handler() {
         // function flag since we only want to execute this once
@@ -3067,12 +2973,12 @@ var add_dom_loaded_handler = function () {
         ;
         dom_loaded_handler.done = true;
         ENQUEUE_REQUESTS = false;
-        (0, utils_1.each)(instances, function (inst) {
+        each(instances, function (inst) {
             inst._dom_loaded();
         });
     }
-    if (globals_1.document === null || globals_1.document === void 0 ? void 0 : globals_1.document.addEventListener) {
-        if (globals_1.document.readyState === 'complete') {
+    if (document === null || document === void 0 ? void 0 : document.addEventListener) {
+        if (document.readyState === 'complete') {
             // safari 4 can fire the DOMContentLoaded event before loading all
             // external JS (including this file). you will see some copypasta
             // on the internet that checks for 'complete' and 'loaded', but
@@ -3080,20 +2986,20 @@ var add_dom_loaded_handler = function () {
             dom_loaded_handler();
         }
         else {
-            (0, utils_1.addEventListener)(globals_1.document, 'DOMContentLoaded', dom_loaded_handler, { capture: false });
+            addEventListener(document, 'DOMContentLoaded', dom_loaded_handler, { capture: false });
         }
         return;
     }
     // Only IE6-8 don't support `document.addEventListener` and we don't support them
     // so let's simply log an error stating PostHog couldn't be initialized
     // We're checking for `window` to avoid erroring out on a SSR context
-    if (globals_1.window) {
-        logger_1.logger.error("Browser doesn't support `document.addEventListener` so PostHog couldn't be initialized");
+    if (window) {
+        logger.error("Browser doesn't support `document.addEventListener` so PostHog couldn't be initialized");
     }
 };
-function init_from_snippet() {
-    var posthogMain = (instances[PRIMARY_INSTANCE_NAME] = new PostHog());
-    var snippetPostHog = globals_1.assignableWindow['posthog'];
+export function init_from_snippet() {
+    const posthogMain = (instances[PRIMARY_INSTANCE_NAME] = new PostHog());
+    const snippetPostHog = assignableWindow['posthog'];
     if (snippetPostHog) {
         /**
          * The snippet uses some clever tricks to allow deferred loading of array.js (this code)
@@ -3125,10 +3031,10 @@ function init_from_snippet() {
          *
          */
         // Call all pre-loaded init calls properly
-        (0, utils_1.each)(snippetPostHog['_i'], function (item) {
-            if (item && (0, core_1.isArray)(item)) {
-                var instance = posthogMain.init(item[0], item[1], item[2]);
-                var instanceSnippet = snippetPostHog[item[2]] || snippetPostHog;
+        each(snippetPostHog['_i'], function (item) {
+            if (item && isArray(item)) {
+                const instance = posthogMain.init(item[0], item[1], item[2]);
+                const instanceSnippet = snippetPostHog[item[2]] || snippetPostHog;
                 if (instance) {
                     // Crunch through the people queue first - we queue this data up &
                     // flush on identify, so it's better to do all these operations first
@@ -3138,12 +3044,11 @@ function init_from_snippet() {
             }
         });
     }
-    globals_1.assignableWindow['posthog'] = posthogMain;
+    assignableWindow['posthog'] = posthogMain;
     add_dom_loaded_handler();
 }
-function init_as_module() {
-    var posthogMain = (instances[PRIMARY_INSTANCE_NAME] = new PostHog());
+export function init_as_module() {
+    const posthogMain = (instances[PRIMARY_INSTANCE_NAME] = new PostHog());
     add_dom_loaded_handler();
     return posthogMain;
 }
-//# sourceMappingURL=posthog-core.js.map

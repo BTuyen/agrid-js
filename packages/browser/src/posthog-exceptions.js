@@ -1,66 +1,57 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PostHogExceptions = void 0;
-exports.buildErrorPropertiesBuilder = buildErrorPropertiesBuilder;
-var constants_1 = require("./constants");
-var logger_1 = require("./utils/logger");
-var property_utils_1 = require("./utils/property-utils");
-var core_1 = require("@agrid/core");
-var logger = (0, logger_1.createLogger)('[Error tracking]');
-function buildErrorPropertiesBuilder() {
-    return new core_1.ErrorTracking.ErrorPropertiesBuilder([
-        new core_1.ErrorTracking.DOMExceptionCoercer(),
-        new core_1.ErrorTracking.PromiseRejectionEventCoercer(),
-        new core_1.ErrorTracking.ErrorEventCoercer(),
-        new core_1.ErrorTracking.ErrorCoercer(),
-        new core_1.ErrorTracking.EventCoercer(),
-        new core_1.ErrorTracking.ObjectCoercer(),
-        new core_1.ErrorTracking.StringCoercer(),
-        new core_1.ErrorTracking.PrimitiveCoercer(),
-    ], [core_1.ErrorTracking.chromeStackLineParser, core_1.ErrorTracking.geckoStackLineParser]);
+import { ERROR_TRACKING_CAPTURE_EXTENSION_EXCEPTIONS, ERROR_TRACKING_SUPPRESSION_RULES } from './constants';
+import { createLogger } from './utils/logger';
+import { propertyComparisons } from './utils/property-utils';
+import { isString, isArray, ErrorTracking, isNullish } from '@agrid/core';
+const logger = createLogger('[Error tracking]');
+export function buildErrorPropertiesBuilder() {
+    return new ErrorTracking.ErrorPropertiesBuilder([
+        new ErrorTracking.DOMExceptionCoercer(),
+        new ErrorTracking.PromiseRejectionEventCoercer(),
+        new ErrorTracking.ErrorEventCoercer(),
+        new ErrorTracking.ErrorCoercer(),
+        new ErrorTracking.EventCoercer(),
+        new ErrorTracking.ObjectCoercer(),
+        new ErrorTracking.StringCoercer(),
+        new ErrorTracking.PrimitiveCoercer(),
+    ], [ErrorTracking.chromeStackLineParser, ErrorTracking.geckoStackLineParser]);
 }
-var PostHogExceptions = /** @class */ (function () {
-    function PostHogExceptions(instance) {
+export class PostHogExceptions {
+    constructor(instance) {
         var _a, _b;
         this._suppressionRules = [];
         this._errorPropertiesBuilder = buildErrorPropertiesBuilder();
         this._instance = instance;
-        this._suppressionRules = (_b = (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.get_property(constants_1.ERROR_TRACKING_SUPPRESSION_RULES)) !== null && _b !== void 0 ? _b : [];
+        this._suppressionRules = (_b = (_a = this._instance.persistence) === null || _a === void 0 ? void 0 : _a.get_property(ERROR_TRACKING_SUPPRESSION_RULES)) !== null && _b !== void 0 ? _b : [];
     }
-    PostHogExceptions.prototype.onRemoteConfig = function (response) {
-        var _a;
-        var _b, _c, _d;
-        var suppressionRules = (_c = (_b = response.errorTracking) === null || _b === void 0 ? void 0 : _b.suppressionRules) !== null && _c !== void 0 ? _c : [];
-        var captureExtensionExceptions = (_d = response.errorTracking) === null || _d === void 0 ? void 0 : _d.captureExtensionExceptions;
+    onRemoteConfig(response) {
+        var _a, _b, _c;
+        const suppressionRules = (_b = (_a = response.errorTracking) === null || _a === void 0 ? void 0 : _a.suppressionRules) !== null && _b !== void 0 ? _b : [];
+        const captureExtensionExceptions = (_c = response.errorTracking) === null || _c === void 0 ? void 0 : _c.captureExtensionExceptions;
         // store this in-memory in case persistence is disabled
         this._suppressionRules = suppressionRules;
         if (this._instance.persistence) {
-            this._instance.persistence.register((_a = {},
-                _a[constants_1.ERROR_TRACKING_SUPPRESSION_RULES] = this._suppressionRules,
-                _a[constants_1.ERROR_TRACKING_CAPTURE_EXTENSION_EXCEPTIONS] = captureExtensionExceptions,
-                _a));
+            this._instance.persistence.register({
+                [ERROR_TRACKING_SUPPRESSION_RULES]: this._suppressionRules,
+                [ERROR_TRACKING_CAPTURE_EXTENSION_EXCEPTIONS]: captureExtensionExceptions,
+            });
         }
-    };
-    Object.defineProperty(PostHogExceptions.prototype, "_captureExtensionExceptions", {
-        get: function () {
-            var _a;
-            var enabled_server_side = !!this._instance.get_property(constants_1.ERROR_TRACKING_CAPTURE_EXTENSION_EXCEPTIONS);
-            var enabled_client_side = this._instance.config.error_tracking.captureExtensionExceptions;
-            return (_a = enabled_client_side !== null && enabled_client_side !== void 0 ? enabled_client_side : enabled_server_side) !== null && _a !== void 0 ? _a : false;
-        },
-        enumerable: false,
-        configurable: true
-    });
-    PostHogExceptions.prototype.buildProperties = function (input, metadata) {
+    }
+    get _captureExtensionExceptions() {
+        var _a;
+        const enabled_server_side = !!this._instance.get_property(ERROR_TRACKING_CAPTURE_EXTENSION_EXCEPTIONS);
+        const enabled_client_side = this._instance.config.error_tracking.captureExtensionExceptions;
+        return (_a = enabled_client_side !== null && enabled_client_side !== void 0 ? enabled_client_side : enabled_server_side) !== null && _a !== void 0 ? _a : false;
+    }
+    buildProperties(input, metadata) {
         return this._errorPropertiesBuilder.buildFromUnknown(input, {
             syntheticException: metadata === null || metadata === void 0 ? void 0 : metadata.syntheticException,
             mechanism: {
                 handled: metadata === null || metadata === void 0 ? void 0 : metadata.handled,
             },
         });
-    };
-    PostHogExceptions.prototype.sendExceptionEvent = function (properties) {
-        var exceptionList = properties.$exception_list;
+    }
+    sendExceptionEvent(properties) {
+        const exceptionList = properties.$exception_list;
         if (this._isExceptionList(exceptionList)) {
             if (this._matchesSuppressionRule(exceptionList)) {
                 logger.info('Skipping exception capture because a suppression rule matched');
@@ -80,17 +71,16 @@ var PostHogExceptions = /** @class */ (function () {
             _noTruncate: true,
             _batchKey: 'exceptionEvent',
         });
-    };
-    PostHogExceptions.prototype._matchesSuppressionRule = function (exceptionList) {
+    }
+    _matchesSuppressionRule(exceptionList) {
         if (exceptionList.length === 0) {
             return false;
         }
-        var exceptionValues = exceptionList.reduce(function (acc, _a) {
-            var type = _a.type, value = _a.value;
-            if ((0, core_1.isString)(type) && type.length > 0) {
+        const exceptionValues = exceptionList.reduce((acc, { type, value }) => {
+            if (isString(type) && type.length > 0) {
                 acc['$exception_types'].push(type);
             }
-            if ((0, core_1.isString)(value) && value.length > 0) {
+            if (isString(value) && value.length > 0) {
                 acc['$exception_values'].push(value);
             }
             return acc;
@@ -98,35 +88,32 @@ var PostHogExceptions = /** @class */ (function () {
             $exception_types: [],
             $exception_values: [],
         });
-        return this._suppressionRules.some(function (rule) {
-            var results = rule.values.map(function (v) {
+        return this._suppressionRules.some((rule) => {
+            const results = rule.values.map((v) => {
                 var _a;
-                var compare = property_utils_1.propertyComparisons[v.operator];
-                var targets = (0, core_1.isArray)(v.value) ? v.value : [v.value];
-                var values = (_a = exceptionValues[v.key]) !== null && _a !== void 0 ? _a : [];
+                const compare = propertyComparisons[v.operator];
+                const targets = isArray(v.value) ? v.value : [v.value];
+                const values = (_a = exceptionValues[v.key]) !== null && _a !== void 0 ? _a : [];
                 return targets.length > 0 ? compare(targets, values) : false;
             });
             return rule.type === 'OR' ? results.some(Boolean) : results.every(Boolean);
         });
-    };
-    PostHogExceptions.prototype._isExtensionException = function (exceptionList) {
-        var frames = exceptionList.flatMap(function (e) { var _a, _b; return (_b = (_a = e.stacktrace) === null || _a === void 0 ? void 0 : _a.frames) !== null && _b !== void 0 ? _b : []; });
-        return frames.some(function (f) { return f.filename && f.filename.startsWith('chrome-extension://'); });
-    };
-    PostHogExceptions.prototype._isPostHogException = function (exceptionList) {
+    }
+    _isExtensionException(exceptionList) {
+        const frames = exceptionList.flatMap((e) => { var _a, _b; return (_b = (_a = e.stacktrace) === null || _a === void 0 ? void 0 : _a.frames) !== null && _b !== void 0 ? _b : []; });
+        return frames.some((f) => f.filename && f.filename.startsWith('chrome-extension://'));
+    }
+    _isPostHogException(exceptionList) {
         var _a, _b, _c, _d;
         if (exceptionList.length > 0) {
-            var exception = exceptionList[0];
-            var frames_1 = (_b = (_a = exception.stacktrace) === null || _a === void 0 ? void 0 : _a.frames) !== null && _b !== void 0 ? _b : [];
-            var lastFrame = frames_1[frames_1.length - 1];
+            const exception = exceptionList[0];
+            const frames = (_b = (_a = exception.stacktrace) === null || _a === void 0 ? void 0 : _a.frames) !== null && _b !== void 0 ? _b : [];
+            const lastFrame = frames[frames.length - 1];
             return (_d = (_c = lastFrame === null || lastFrame === void 0 ? void 0 : lastFrame.filename) === null || _c === void 0 ? void 0 : _c.includes('posthog.com/static')) !== null && _d !== void 0 ? _d : false;
         }
         return false;
-    };
-    PostHogExceptions.prototype._isExceptionList = function (candidate) {
-        return !(0, core_1.isNullish)(candidate) && (0, core_1.isArray)(candidate);
-    };
-    return PostHogExceptions;
-}());
-exports.PostHogExceptions = PostHogExceptions;
-//# sourceMappingURL=posthog-exceptions.js.map
+    }
+    _isExceptionList(candidate) {
+        return !isNullish(candidate) && isArray(candidate);
+    }
+}

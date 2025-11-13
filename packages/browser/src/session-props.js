@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SessionPropsManager = void 0;
 /* Store some session-level attribution-related properties in the persistence layer
  *
  * These have the same lifespan as a session_id, meaning that if the session_id changes, these properties will be reset.
@@ -11,27 +8,25 @@ exports.SessionPropsManager = void 0;
  * properties (such as browser, OS, etc) here, as usually getting the current value of those from event properties is
  * sufficient.
  */
-var event_utils_1 = require("./utils/event-utils");
-var constants_1 = require("./constants");
-var utils_1 = require("./utils");
-var core_1 = require("@agrid/core");
-var generateSessionSourceParams = function (posthog) {
-    return (0, event_utils_1.getPersonInfo)(posthog === null || posthog === void 0 ? void 0 : posthog.config.mask_personal_data_properties, posthog === null || posthog === void 0 ? void 0 : posthog.config.custom_personal_data_properties);
+import { getPersonInfo, getPersonPropsFromInfo } from './utils/event-utils';
+import { CLIENT_SESSION_PROPS } from './constants';
+import { each, stripEmptyProperties } from './utils';
+import { stripLeadingDollar } from '@agrid/core';
+const generateSessionSourceParams = (posthog) => {
+    return getPersonInfo(posthog === null || posthog === void 0 ? void 0 : posthog.config.mask_personal_data_properties, posthog === null || posthog === void 0 ? void 0 : posthog.config.custom_personal_data_properties);
 };
-var SessionPropsManager = /** @class */ (function () {
-    function SessionPropsManager(instance, sessionIdManager, persistence, sessionSourceParamGenerator) {
-        var _this = this;
-        this._onSessionIdCallback = function (sessionId) {
-            var _a;
-            var stored = _this._getStored();
+export class SessionPropsManager {
+    constructor(instance, sessionIdManager, persistence, sessionSourceParamGenerator) {
+        this._onSessionIdCallback = (sessionId) => {
+            const stored = this._getStored();
             if (stored && stored.sessionId === sessionId) {
                 return;
             }
-            var newProps = {
-                sessionId: sessionId,
-                props: _this._sessionSourceParamGenerator(_this._instance),
+            const newProps = {
+                sessionId,
+                props: this._sessionSourceParamGenerator(this._instance),
             };
-            _this._persistence.register((_a = {}, _a[constants_1.CLIENT_SESSION_PROPS] = newProps, _a));
+            this._persistence.register({ [CLIENT_SESSION_PROPS]: newProps });
         };
         this._instance = instance;
         this._sessionIdManager = sessionIdManager;
@@ -39,17 +34,17 @@ var SessionPropsManager = /** @class */ (function () {
         this._sessionSourceParamGenerator = sessionSourceParamGenerator || generateSessionSourceParams;
         this._sessionIdManager.onSessionId(this._onSessionIdCallback);
     }
-    SessionPropsManager.prototype._getStored = function () {
-        return this._persistence.props[constants_1.CLIENT_SESSION_PROPS];
-    };
-    SessionPropsManager.prototype.getSetOnceProps = function () {
+    _getStored() {
+        return this._persistence.props[CLIENT_SESSION_PROPS];
+    }
+    getSetOnceProps() {
         var _a;
-        var p = (_a = this._getStored()) === null || _a === void 0 ? void 0 : _a.props;
+        const p = (_a = this._getStored()) === null || _a === void 0 ? void 0 : _a.props;
         if (!p) {
             return {};
         }
         if ('r' in p) {
-            return (0, event_utils_1.getPersonPropsFromInfo)(p);
+            return getPersonPropsFromInfo(p);
         }
         else {
             return {
@@ -62,20 +57,17 @@ var SessionPropsManager = /** @class */ (function () {
                 utm_term: p.utm_term,
             };
         }
-    };
-    SessionPropsManager.prototype.getSessionProps = function () {
+    }
+    getSessionProps() {
         // it's the same props, but don't include null for unset properties, and add a prefix
-        var p = {};
-        (0, utils_1.each)((0, utils_1.stripEmptyProperties)(this.getSetOnceProps()), function (v, k) {
+        const p = {};
+        each(stripEmptyProperties(this.getSetOnceProps()), (v, k) => {
             if (k === '$current_url') {
                 // $session_entry_current_url would be a weird name, call it $session_entry_url instead
                 k = 'url';
             }
-            p["$session_entry_".concat((0, core_1.stripLeadingDollar)(k))] = v;
+            p[`$session_entry_${stripLeadingDollar(k)}`] = v;
         });
         return p;
-    };
-    return SessionPropsManager;
-}());
-exports.SessionPropsManager = SessionPropsManager;
-//# sourceMappingURL=session-props.js.map
+    }
+}

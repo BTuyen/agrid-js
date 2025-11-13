@@ -1,36 +1,11 @@
-"use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PostHogSurveys = void 0;
-var constants_1 = require("./constants");
-var posthog_surveys_types_1 = require("./posthog-surveys-types");
-var globals_1 = require("./utils/globals");
-var survey_event_receiver_1 = require("./utils/survey-event-receiver");
-var survey_utils_1 = require("./utils/survey-utils");
-var core_1 = require("@agrid/core");
-var PostHogSurveys = /** @class */ (function () {
-    function PostHogSurveys(_instance) {
+import { SURVEYS } from './constants';
+import { DisplaySurveyType, } from './posthog-surveys-types';
+import { assignableWindow, document } from './utils/globals';
+import { SurveyEventReceiver } from './utils/survey-event-receiver';
+import { doesSurveyActivateByAction, doesSurveyActivateByEvent, IN_APP_SURVEY_TYPES, isSurveyRunning, SURVEY_LOGGER as logger, SURVEY_IN_PROGRESS_PREFIX, SURVEY_SEEN_PREFIX, } from './utils/survey-utils';
+import { isNullish, isUndefined, isArray } from '@agrid/core';
+export class PostHogSurveys {
+    constructor(_instance) {
         this._instance = _instance;
         // this is set to undefined until the remote config is loaded
         // then it's set to true if there are surveys to load
@@ -45,83 +20,82 @@ var PostHogSurveys = /** @class */ (function () {
         // but that's not initialized until loadIfEnabled is called.
         this._surveyEventReceiver = null;
     }
-    PostHogSurveys.prototype.onRemoteConfig = function (response) {
+    onRemoteConfig(response) {
         // only load surveys if they are enabled and there are surveys to load
         if (this._instance.config.disable_surveys) {
             return;
         }
-        var surveys = response['surveys'];
-        if ((0, core_1.isNullish)(surveys)) {
-            return survey_utils_1.SURVEY_LOGGER.warn('Flags not loaded yet. Not loading surveys.');
+        const surveys = response['surveys'];
+        if (isNullish(surveys)) {
+            return logger.warn('Flags not loaded yet. Not loading surveys.');
         }
-        var isArrayResponse = (0, core_1.isArray)(surveys);
+        const isArrayResponse = isArray(surveys);
         this._isSurveysEnabled = isArrayResponse ? surveys.length > 0 : surveys;
-        survey_utils_1.SURVEY_LOGGER.info("flags response received, isSurveysEnabled: ".concat(this._isSurveysEnabled));
+        logger.info(`flags response received, isSurveysEnabled: ${this._isSurveysEnabled}`);
         this.loadIfEnabled();
-    };
-    PostHogSurveys.prototype.reset = function () {
+    }
+    reset() {
         localStorage.removeItem('lastSeenSurveyDate');
-        var surveyKeys = [];
-        for (var i = 0; i < localStorage.length; i++) {
-            var key = localStorage.key(i);
-            if ((key === null || key === void 0 ? void 0 : key.startsWith(survey_utils_1.SURVEY_SEEN_PREFIX)) || (key === null || key === void 0 ? void 0 : key.startsWith(survey_utils_1.SURVEY_IN_PROGRESS_PREFIX))) {
+        const surveyKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if ((key === null || key === void 0 ? void 0 : key.startsWith(SURVEY_SEEN_PREFIX)) || (key === null || key === void 0 ? void 0 : key.startsWith(SURVEY_IN_PROGRESS_PREFIX))) {
                 surveyKeys.push(key);
             }
         }
-        surveyKeys.forEach(function (key) { return localStorage.removeItem(key); });
-    };
-    PostHogSurveys.prototype.loadIfEnabled = function () {
-        var _this = this;
+        surveyKeys.forEach((key) => localStorage.removeItem(key));
+    }
+    loadIfEnabled() {
         // Initial guard clauses
         if (this._surveyManager) {
             return;
         } // Already loaded
         if (this._isInitializingSurveys) {
-            survey_utils_1.SURVEY_LOGGER.info('Already initializing surveys, skipping...');
+            logger.info('Already initializing surveys, skipping...');
             return;
         }
         if (this._instance.config.disable_surveys) {
-            survey_utils_1.SURVEY_LOGGER.info('Disabled. Not loading surveys.');
+            logger.info('Disabled. Not loading surveys.');
             return;
         }
         if (this._instance.config.cookieless_mode && this._instance.consent.isOptedOut()) {
-            survey_utils_1.SURVEY_LOGGER.info('Not loading surveys in cookieless mode without consent.');
+            logger.info('Not loading surveys in cookieless mode without consent.');
             return;
         }
-        var phExtensions = globals_1.assignableWindow === null || globals_1.assignableWindow === void 0 ? void 0 : globals_1.assignableWindow.__PosthogExtensions__;
+        const phExtensions = assignableWindow === null || assignableWindow === void 0 ? void 0 : assignableWindow.__PosthogExtensions__;
         if (!phExtensions) {
-            survey_utils_1.SURVEY_LOGGER.error('PostHog Extensions not found.');
+            logger.error('PostHog Extensions not found.');
             return;
         }
         // waiting for remote config to load
         // if surveys is forced enable (like external surveys), ignore the remote config and load surveys
-        if ((0, core_1.isUndefined)(this._isSurveysEnabled) && !this._instance.config.advanced_enable_surveys) {
+        if (isUndefined(this._isSurveysEnabled) && !this._instance.config.advanced_enable_surveys) {
             return;
         }
-        var isSurveysEnabled = this._isSurveysEnabled || this._instance.config.advanced_enable_surveys;
+        const isSurveysEnabled = this._isSurveysEnabled || this._instance.config.advanced_enable_surveys;
         this._isInitializingSurveys = true;
         try {
-            var generateSurveys = phExtensions.generateSurveys;
+            const generateSurveys = phExtensions.generateSurveys;
             if (generateSurveys) {
                 // Surveys code is already loaded
                 this._completeSurveyInitialization(generateSurveys, isSurveysEnabled);
                 return;
             }
             // If we reach here, surveys code is not loaded yet
-            var loadExternalDependency = phExtensions.loadExternalDependency;
+            const loadExternalDependency = phExtensions.loadExternalDependency;
             if (!loadExternalDependency) {
                 // Cannot load surveys code
                 this._handleSurveyLoadError('PostHog loadExternalDependency extension not found.');
                 return;
             }
             // If we reach here, we need to load the dependency
-            loadExternalDependency(this._instance, 'surveys', function (err) {
+            loadExternalDependency(this._instance, 'surveys', (err) => {
                 if (err || !phExtensions.generateSurveys) {
-                    _this._handleSurveyLoadError('Could not load surveys script', err);
+                    this._handleSurveyLoadError('Could not load surveys script', err);
                 }
                 else {
                     // Need to get the function reference again inside the callback
-                    _this._completeSurveyInitialization(phExtensions.generateSurveys, isSurveysEnabled);
+                    this._completeSurveyInitialization(phExtensions.generateSurveys, isSurveysEnabled);
                 }
             });
         }
@@ -133,19 +107,19 @@ var PostHogSurveys = /** @class */ (function () {
             // Ensure the flag is always reset
             this._isInitializingSurveys = false;
         }
-    };
+    }
     /** Helper to finalize survey initialization */
-    PostHogSurveys.prototype._completeSurveyInitialization = function (generateSurveysFn, isSurveysEnabled) {
+    _completeSurveyInitialization(generateSurveysFn, isSurveysEnabled) {
         this._surveyManager = generateSurveysFn(this._instance, isSurveysEnabled);
-        this._surveyEventReceiver = new survey_event_receiver_1.SurveyEventReceiver(this._instance);
-        survey_utils_1.SURVEY_LOGGER.info('Surveys loaded successfully');
+        this._surveyEventReceiver = new SurveyEventReceiver(this._instance);
+        logger.info('Surveys loaded successfully');
         this._notifySurveyCallbacks({ isLoaded: true });
-    };
+    }
     /** Helper to handle errors during survey loading */
-    PostHogSurveys.prototype._handleSurveyLoadError = function (message, error) {
-        survey_utils_1.SURVEY_LOGGER.error(message, error);
+    _handleSurveyLoadError(message, error) {
+        logger.error(message, error);
         this._notifySurveyCallbacks({ isLoaded: false, error: message });
-    };
+    }
     /**
      * Register a callback that runs when surveys are initialized.
      * ### Usage:
@@ -166,8 +140,7 @@ var PostHogSurveys = /** @class */ (function () {
      *                           It receives the array of all surveys and a context object with error status.
      * @returns {Function} A function that can be called to unsubscribe the listener.
      */
-    PostHogSurveys.prototype.onSurveysLoaded = function (callback) {
-        var _this = this;
+    onSurveysLoaded(callback) {
         this._surveyCallbacks.push(callback);
         if (this._surveyManager) {
             this._notifySurveyCallbacks({
@@ -175,20 +148,18 @@ var PostHogSurveys = /** @class */ (function () {
             });
         }
         // Return unsubscribe function
-        return function () {
-            _this._surveyCallbacks = _this._surveyCallbacks.filter(function (cb) { return cb !== callback; });
+        return () => {
+            this._surveyCallbacks = this._surveyCallbacks.filter((cb) => cb !== callback);
         };
-    };
-    PostHogSurveys.prototype.getSurveys = function (callback, forceReload) {
-        var _this = this;
-        if (forceReload === void 0) { forceReload = false; }
+    }
+    getSurveys(callback, forceReload = false) {
         // In case we manage to load the surveys script, but config says not to load surveys
         // then we shouldn't return survey data
         if (this._instance.config.disable_surveys) {
-            survey_utils_1.SURVEY_LOGGER.info('Disabled. Not loading surveys.');
+            logger.info('Disabled. Not loading surveys.');
             return callback([]);
         }
-        var existingSurveys = this._instance.get_property(constants_1.SURVEYS);
+        const existingSurveys = this._instance.get_property(SURVEYS);
         if (existingSurveys && !forceReload) {
             return callback(existingSurveys, {
                 isLoaded: true,
@@ -204,31 +175,28 @@ var PostHogSurveys = /** @class */ (function () {
         try {
             this._isFetchingSurveys = true;
             this._instance._send_request({
-                url: this._instance.requestRouter.endpointFor('api', "/api/surveys/?token=".concat(this._instance.config.token)),
+                url: this._instance.requestRouter.endpointFor('api', `/api/surveys/?token=${this._instance.config.token}`),
                 method: 'GET',
                 timeout: this._instance.config.surveys_request_timeout_ms,
-                callback: function (response) {
-                    var _a;
-                    var _b, _c;
-                    _this._isFetchingSurveys = false;
-                    var statusCode = response.statusCode;
+                callback: (response) => {
+                    var _a, _b;
+                    this._isFetchingSurveys = false;
+                    const statusCode = response.statusCode;
                     if (statusCode !== 200 || !response.json) {
-                        var error = "Surveys API could not be loaded, status: ".concat(statusCode);
-                        survey_utils_1.SURVEY_LOGGER.error(error);
+                        const error = `Surveys API could not be loaded, status: ${statusCode}`;
+                        logger.error(error);
                         return callback([], {
                             isLoaded: false,
-                            error: error,
+                            error,
                         });
                     }
-                    var surveys = response.json.surveys || [];
-                    var eventOrActionBasedSurveys = surveys.filter(function (survey) {
-                        return (0, survey_utils_1.isSurveyRunning)(survey) &&
-                            ((0, survey_utils_1.doesSurveyActivateByEvent)(survey) || (0, survey_utils_1.doesSurveyActivateByAction)(survey));
-                    });
+                    const surveys = response.json.surveys || [];
+                    const eventOrActionBasedSurveys = surveys.filter((survey) => isSurveyRunning(survey) &&
+                        (doesSurveyActivateByEvent(survey) || doesSurveyActivateByAction(survey)));
                     if (eventOrActionBasedSurveys.length > 0) {
-                        (_b = _this._surveyEventReceiver) === null || _b === void 0 ? void 0 : _b.register(eventOrActionBasedSurveys);
+                        (_a = this._surveyEventReceiver) === null || _a === void 0 ? void 0 : _a.register(eventOrActionBasedSurveys);
                     }
-                    (_c = _this._instance.persistence) === null || _c === void 0 ? void 0 : _c.register((_a = {}, _a[constants_1.SURVEYS] = surveys, _a));
+                    (_b = this._instance.persistence) === null || _b === void 0 ? void 0 : _b.register({ [SURVEYS]: surveys });
                     return callback(surveys, {
                         isLoaded: true,
                     });
@@ -239,154 +207,143 @@ var PostHogSurveys = /** @class */ (function () {
             this._isFetchingSurveys = false;
             throw e;
         }
-    };
+    }
     /** Helper method to notify all registered callbacks */
-    PostHogSurveys.prototype._notifySurveyCallbacks = function (context) {
-        var e_1, _a;
-        try {
-            for (var _b = __values(this._surveyCallbacks), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var callback = _c.value;
-                try {
-                    if (!context.isLoaded) {
-                        return callback([], context);
-                    }
-                    this.getSurveys(callback);
-                }
-                catch (error) {
-                    survey_utils_1.SURVEY_LOGGER.error('Error in survey callback', error);
-                }
-            }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
+    _notifySurveyCallbacks(context) {
+        for (const callback of this._surveyCallbacks) {
             try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                if (!context.isLoaded) {
+                    return callback([], context);
+                }
+                this.getSurveys(callback);
             }
-            finally { if (e_1) throw e_1.error; }
+            catch (error) {
+                logger.error('Error in survey callback', error);
+            }
         }
-    };
-    PostHogSurveys.prototype.getActiveMatchingSurveys = function (callback, forceReload) {
-        if (forceReload === void 0) { forceReload = false; }
-        if ((0, core_1.isNullish)(this._surveyManager)) {
-            survey_utils_1.SURVEY_LOGGER.warn('init was not called');
+    }
+    getActiveMatchingSurveys(callback, forceReload = false) {
+        if (isNullish(this._surveyManager)) {
+            logger.warn('init was not called');
             return;
         }
         return this._surveyManager.getActiveMatchingSurveys(callback, forceReload);
-    };
-    PostHogSurveys.prototype._getSurveyById = function (surveyId) {
-        var survey = null;
-        this.getSurveys(function (surveys) {
+    }
+    _getSurveyById(surveyId) {
+        let survey = null;
+        this.getSurveys((surveys) => {
             var _a;
-            survey = (_a = surveys.find(function (x) { return x.id === surveyId; })) !== null && _a !== void 0 ? _a : null;
+            survey = (_a = surveys.find((x) => x.id === surveyId)) !== null && _a !== void 0 ? _a : null;
         });
         return survey;
-    };
-    PostHogSurveys.prototype._checkSurveyEligibility = function (surveyId) {
-        if ((0, core_1.isNullish)(this._surveyManager)) {
+    }
+    _checkSurveyEligibility(surveyId) {
+        if (isNullish(this._surveyManager)) {
             return { eligible: false, reason: 'SDK is not enabled or survey functionality is not yet loaded' };
         }
-        var survey = typeof surveyId === 'string' ? this._getSurveyById(surveyId) : surveyId;
+        const survey = typeof surveyId === 'string' ? this._getSurveyById(surveyId) : surveyId;
         if (!survey) {
             return { eligible: false, reason: 'Survey not found' };
         }
         return this._surveyManager.checkSurveyEligibility(survey);
-    };
-    PostHogSurveys.prototype.canRenderSurvey = function (surveyId) {
-        if ((0, core_1.isNullish)(this._surveyManager)) {
-            survey_utils_1.SURVEY_LOGGER.warn('init was not called');
+    }
+    canRenderSurvey(surveyId) {
+        if (isNullish(this._surveyManager)) {
+            logger.warn('init was not called');
             return { visible: false, disabledReason: 'SDK is not enabled or survey functionality is not yet loaded' };
         }
-        var eligibility = this._checkSurveyEligibility(surveyId);
+        const eligibility = this._checkSurveyEligibility(surveyId);
         return { visible: eligibility.eligible, disabledReason: eligibility.reason };
-    };
-    PostHogSurveys.prototype.canRenderSurveyAsync = function (surveyId, forceReload) {
-        var _this = this;
+    }
+    canRenderSurveyAsync(surveyId, forceReload) {
         // Ensure surveys are loaded before checking
         // Using Promise to wrap the callback-based getSurveys method
-        if ((0, core_1.isNullish)(this._surveyManager)) {
-            survey_utils_1.SURVEY_LOGGER.warn('init was not called');
+        if (isNullish(this._surveyManager)) {
+            logger.warn('init was not called');
             return Promise.resolve({
                 visible: false,
                 disabledReason: 'SDK is not enabled or survey functionality is not yet loaded',
             });
         }
         // eslint-disable-next-line compat/compat
-        return new Promise(function (resolve) {
-            _this.getSurveys(function (surveys) {
+        return new Promise((resolve) => {
+            this.getSurveys((surveys) => {
                 var _a;
-                var survey = (_a = surveys.find(function (x) { return x.id === surveyId; })) !== null && _a !== void 0 ? _a : null;
+                const survey = (_a = surveys.find((x) => x.id === surveyId)) !== null && _a !== void 0 ? _a : null;
                 if (!survey) {
                     resolve({ visible: false, disabledReason: 'Survey not found' });
                 }
                 else {
-                    var eligibility = _this._checkSurveyEligibility(survey);
+                    const eligibility = this._checkSurveyEligibility(survey);
                     resolve({ visible: eligibility.eligible, disabledReason: eligibility.reason });
                 }
             }, forceReload);
         });
-    };
-    PostHogSurveys.prototype.renderSurvey = function (surveyId, selector) {
-        var _this = this;
+    }
+    renderSurvey(surveyId, selector) {
         var _a;
-        if ((0, core_1.isNullish)(this._surveyManager)) {
-            survey_utils_1.SURVEY_LOGGER.warn('init was not called');
+        if (isNullish(this._surveyManager)) {
+            logger.warn('init was not called');
             return;
         }
-        var survey = typeof surveyId === 'string' ? this._getSurveyById(surveyId) : surveyId;
+        const survey = typeof surveyId === 'string' ? this._getSurveyById(surveyId) : surveyId;
         if (!(survey === null || survey === void 0 ? void 0 : survey.id)) {
-            survey_utils_1.SURVEY_LOGGER.warn('Survey not found');
+            logger.warn('Survey not found');
             return;
         }
-        if (!survey_utils_1.IN_APP_SURVEY_TYPES.includes(survey.type)) {
-            survey_utils_1.SURVEY_LOGGER.warn("Surveys of type ".concat(survey.type, " cannot be rendered in the app"));
+        if (!IN_APP_SURVEY_TYPES.includes(survey.type)) {
+            logger.warn(`Surveys of type ${survey.type} cannot be rendered in the app`);
             return;
         }
-        var elem = globals_1.document === null || globals_1.document === void 0 ? void 0 : globals_1.document.querySelector(selector);
+        const elem = document === null || document === void 0 ? void 0 : document.querySelector(selector);
         if (!elem) {
-            survey_utils_1.SURVEY_LOGGER.warn('Survey element not found');
+            logger.warn('Survey element not found');
             return;
         }
         if ((_a = survey.appearance) === null || _a === void 0 ? void 0 : _a.surveyPopupDelaySeconds) {
-            survey_utils_1.SURVEY_LOGGER.info("Rendering survey ".concat(survey.id, " with delay of ").concat(survey.appearance.surveyPopupDelaySeconds, " seconds"));
-            setTimeout(function () {
+            logger.info(`Rendering survey ${survey.id} with delay of ${survey.appearance.surveyPopupDelaySeconds} seconds`);
+            setTimeout(() => {
                 var _a, _b;
-                survey_utils_1.SURVEY_LOGGER.info("Rendering survey ".concat(survey.id, " with delay of ").concat((_a = survey.appearance) === null || _a === void 0 ? void 0 : _a.surveyPopupDelaySeconds, " seconds"));
-                (_b = _this._surveyManager) === null || _b === void 0 ? void 0 : _b.renderSurvey(survey, elem);
-                survey_utils_1.SURVEY_LOGGER.info("Survey ".concat(survey.id, " rendered"));
+                logger.info(`Rendering survey ${survey.id} with delay of ${(_a = survey.appearance) === null || _a === void 0 ? void 0 : _a.surveyPopupDelaySeconds} seconds`);
+                (_b = this._surveyManager) === null || _b === void 0 ? void 0 : _b.renderSurvey(survey, elem);
+                logger.info(`Survey ${survey.id} rendered`);
             }, survey.appearance.surveyPopupDelaySeconds * 1000);
             return;
         }
         this._surveyManager.renderSurvey(survey, elem);
-    };
-    PostHogSurveys.prototype.displaySurvey = function (surveyId, options) {
+    }
+    displaySurvey(surveyId, options) {
         var _a;
-        if ((0, core_1.isNullish)(this._surveyManager)) {
-            survey_utils_1.SURVEY_LOGGER.warn('init was not called');
+        if (isNullish(this._surveyManager)) {
+            logger.warn('init was not called');
             return;
         }
-        var survey = this._getSurveyById(surveyId);
+        const survey = this._getSurveyById(surveyId);
         if (!survey) {
-            survey_utils_1.SURVEY_LOGGER.warn('Survey not found');
+            logger.warn('Survey not found');
             return;
         }
-        var surveyToDisplay = survey;
+        let surveyToDisplay = survey;
         if (((_a = survey.appearance) === null || _a === void 0 ? void 0 : _a.surveyPopupDelaySeconds) && options.ignoreDelay) {
-            surveyToDisplay = __assign(__assign({}, survey), { appearance: __assign(__assign({}, survey.appearance), { surveyPopupDelaySeconds: 0 }) });
+            surveyToDisplay = {
+                ...survey,
+                appearance: {
+                    ...survey.appearance,
+                    surveyPopupDelaySeconds: 0,
+                },
+            };
         }
         if (options.ignoreConditions === false) {
-            var canRender = this.canRenderSurvey(survey);
+            const canRender = this.canRenderSurvey(survey);
             if (!canRender.visible) {
-                survey_utils_1.SURVEY_LOGGER.warn('Survey is not eligible to be displayed: ', canRender.disabledReason);
+                logger.warn('Survey is not eligible to be displayed: ', canRender.disabledReason);
                 return;
             }
         }
-        if (options.displayType === posthog_surveys_types_1.DisplaySurveyType.Inline) {
+        if (options.displayType === DisplaySurveyType.Inline) {
             this.renderSurvey(surveyToDisplay, options.selector);
             return;
         }
         this._surveyManager.handlePopoverSurvey(surveyToDisplay);
-    };
-    return PostHogSurveys;
-}());
-exports.PostHogSurveys = PostHogSurveys;
-//# sourceMappingURL=posthog-surveys.js.map
+    }
+}

@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Integrate Sentry with PostHog. This will add a direct link to the person in Sentry, and an $exception event in PostHog
  *
@@ -18,44 +17,36 @@
  * @param {SeverityLevel[] | '*'} [severityAllowList] Optional: send events matching the provided levels. Use '*' to send all events (default: ['error'])
  * @param {boolean} [sendExceptionsToPostHog] Optional: capture exceptions as events in PostHog (default: true)
  */
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SentryIntegration = void 0;
-exports.createEventProcessor = createEventProcessor;
-exports.sentryIntegration = sentryIntegration;
-var NAME = 'posthog-js';
-function createEventProcessor(_posthog, _a) {
-    var _b = _a === void 0 ? {} : _a, organization = _b.organization, projectId = _b.projectId, prefix = _b.prefix, _c = _b.severityAllowList, severityAllowList = _c === void 0 ? ['error'] : _c, _d = _b.sendExceptionsToPostHog, sendExceptionsToPostHog = _d === void 0 ? true : _d;
-    return function (event) {
+const NAME = 'posthog-js';
+export function createEventProcessor(_posthog, { organization, projectId, prefix, severityAllowList = ['error'], sendExceptionsToPostHog = true, } = {}) {
+    return (event) => {
         var _a, _b, _c, _d, _e;
-        var shouldProcessLevel = severityAllowList === '*' || severityAllowList.includes(event.level);
+        const shouldProcessLevel = severityAllowList === '*' || severityAllowList.includes(event.level);
         if (!shouldProcessLevel || !_posthog.__loaded)
             return event;
         if (!event.tags)
             event.tags = {};
-        var personUrl = _posthog.requestRouter.endpointFor('ui', "/project/".concat(_posthog.config.token, "/person/").concat(_posthog.get_distinct_id()));
+        const personUrl = _posthog.requestRouter.endpointFor('ui', `/project/${_posthog.config.token}/person/${_posthog.get_distinct_id()}`);
         event.tags['PostHog Person URL'] = personUrl;
         if (_posthog.sessionRecordingStarted()) {
             event.tags['PostHog Recording URL'] = _posthog.get_session_replay_url({ withTimestamp: true });
         }
-        var exceptions = ((_a = event.exception) === null || _a === void 0 ? void 0 : _a.values) || [];
-        var exceptionList = exceptions.map(function (exception) {
-            return __assign(__assign({}, exception), { stacktrace: exception.stacktrace
-                    ? __assign(__assign({}, exception.stacktrace), { type: 'raw', frames: (exception.stacktrace.frames || []).map(function (frame) {
-                            return __assign(__assign({}, frame), { platform: 'web:javascript' });
-                        }) }) : undefined });
+        const exceptions = ((_a = event.exception) === null || _a === void 0 ? void 0 : _a.values) || [];
+        const exceptionList = exceptions.map((exception) => {
+            return {
+                ...exception,
+                stacktrace: exception.stacktrace
+                    ? {
+                        ...exception.stacktrace,
+                        type: 'raw',
+                        frames: (exception.stacktrace.frames || []).map((frame) => {
+                            return { ...frame, platform: 'web:javascript' };
+                        }),
+                    }
+                    : undefined,
+            };
         });
-        var data = {
+        const data = {
             // PostHog Exception Properties,
             $exception_message: ((_b = exceptions[0]) === null || _b === void 0 ? void 0 : _b.value) || event.message,
             $exception_type: (_c = exceptions[0]) === null || _c === void 0 ? void 0 : _c.type,
@@ -84,31 +75,28 @@ function createEventProcessor(_posthog, _a) {
     };
 }
 // V8 integration - function based
-function sentryIntegration(_posthog, options) {
-    var processor = createEventProcessor(_posthog, options);
+export function sentryIntegration(_posthog, options) {
+    const processor = createEventProcessor(_posthog, options);
     return {
         name: NAME,
-        processEvent: function (event) {
+        processEvent(event) {
             return processor(event);
         },
     };
 }
 // V7 integration - class based
-var SentryIntegration = /** @class */ (function () {
-    function SentryIntegration(_posthog, organization, projectId, prefix, severityAllowList, sendExceptionsToPostHog) {
+export class SentryIntegration {
+    constructor(_posthog, organization, projectId, prefix, severityAllowList, sendExceptionsToPostHog) {
         // setupOnce gets called by Sentry when it intializes the plugin
         this.name = NAME;
         this.setupOnce = function (addGlobalEventProcessor) {
             addGlobalEventProcessor(createEventProcessor(_posthog, {
-                organization: organization,
-                projectId: projectId,
-                prefix: prefix,
-                severityAllowList: severityAllowList,
+                organization,
+                projectId,
+                prefix,
+                severityAllowList,
                 sendExceptionsToPostHog: sendExceptionsToPostHog !== null && sendExceptionsToPostHog !== void 0 ? sendExceptionsToPostHog : true,
             }));
         };
     }
-    return SentryIntegration;
-}());
-exports.SentryIntegration = SentryIntegration;
-//# sourceMappingURL=sentry-integration.js.map
+}
