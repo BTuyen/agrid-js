@@ -1,31 +1,211 @@
+# Agrid JS
+
 <p align="center">
-  <img alt="posthoglogo" src="https://user-images.githubusercontent.com/65415371/205059737-c8a4f836-4889-4654-902e-f302b187b6a0.png">
+  <img alt="agrid-logo" src="https://img.shields.io/badge/Agrid-JS-blue?style=for-the-badge">
 </p>
+
 <p align="center">
-  <img alt="GitHub contributors" src="https://img.shields.io/github/contributors/posthog/posthog"/>
+  <img alt="GitHub contributors" src="https://img.shields.io/github/contributors/BTuyen/agrid-js"/>
   <a href='http://makeapullrequest.com'><img alt='PRs Welcome' src='https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=shields'/></a>
-  <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/posthog/posthog-js"/>
-  <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed/posthog/posthog-js"/>
+  <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/BTuyen/agrid-js"/>
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"/>
 </p>
 
-# Posthog JS
+## 🌾 Giới thiệu
 
-This is a monorepo containing multiple packages to integrate with Posthog using JavaScript.
+**Agrid JS** là một monorepo chứa nhiều packages JavaScript để tích hợp với nền tảng **Agrid** - một hệ thống analytics và event tracking được fork từ PostHog.
 
-## Documentation
+Repository này cung cấp các SDK cho:
+- 🌐 **Web/Browser**: Tracking events và analytics trên client-side
+- ⚛️ **React**: Components và hooks cho React applications
+- 📱 **React Native**: SDK cho mobile apps
+- 🖥️ **Node.js**: Backend SDK cho server-side tracking
+- 🚀 **Next.js & Nuxt**: Framework integrations
+- 🤖 **AI**: AI integrations cho Node.js
 
-- [Posthog JS Documentation](https://posthog.com/docs/libraries/js)
+## 📦 Packages
 
-## Packages
+Repository này chứa các packages sau:
 
-- [posthog-js](./packages/browser/README.md)
-- [posthog-js-lite](./packages/web/README.md)
-- [posthog-node](./packages/node/README.md)
-- [posthog-react-native](./packages/react-native/README.md)
-- [@posthog/react](./packages/react/README.md)
-- [@posthog/ai](./packages/ai/README.md)
-- [@posthog/nextjs-config](./packages/nextjs-config/README.md)
+| Package | NPM Name | Mô tả |
+|---------|----------|-------|
+| `browser/` | `@agrid/browser` | Main browser SDK cho client-side analytics và event tracking |
+| `web/` | `agrid-js-lite` | Lightweight browser SDK - phiên bản nhẹ cho modern SPAs |
+| `core/` | `@agrid/core` | Core functionality được chia sẻ bởi nhiều SDKs |
+| `node/` | `@agrid/node` | Node.js backend SDK (yêu cầu Node >= 20) |
+| `react/` | `@agrid/react` | React components và hooks cho analytics |
+| `react-native/` | `@agrid/react-native` | React Native mobile SDK |
+| `nuxt/` | `@agrid/nuxt` | Nuxt framework module |
+| `nextjs-config/` | `@agrid/nextjs-config` | Next.js configuration helper |
+| `ai/` | `@agrid/ai` | AI integrations cho Node.js |
 
-## Contributing
+## 🚀 Bắt đầu nhanh
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md)
+### Cài đặt
+
+```bash
+# Browser SDK
+npm install @agrid/browser
+
+# Lightweight Web SDK
+npm install agrid-js-lite
+
+# React SDK
+npm install @agrid/react
+
+# Node.js SDK
+npm install @agrid/node
+
+# React Native SDK
+npm install @agrid/react-native
+```
+
+### Sử dụng cơ bản
+
+#### Browser SDK
+```javascript
+import posthog from '@agrid/browser'
+
+posthog.init('YOUR_PROJECT_API_KEY', {
+  api_host: 'https://your-agrid-instance.com'
+})
+
+posthog.capture('user_signed_up', {
+  plan: 'premium'
+})
+```
+
+#### React SDK
+```jsx
+import { PostHogProvider } from '@agrid/react'
+
+function App() {
+  return (
+    <PostHogProvider apiKey="YOUR_PROJECT_API_KEY">
+      <YourApp />
+    </PostHogProvider>
+  )
+}
+```
+
+#### Node.js SDK
+```javascript
+import { PostHog } from '@agrid/node'
+
+const posthog = new PostHog('YOUR_PROJECT_API_KEY', {
+  host: 'https://your-agrid-instance.com'
+})
+
+posthog.capture({
+  distinctId: 'user123',
+  event: 'purchase',
+  properties: {
+    amount: 99.99
+  }
+})
+```
+
+## 📚 Tài liệu
+
+- [Agrid JS Documentation](https://agridhub.vn/docs/agrid-js)
+- [React SDK Documentation](https://agrid.dev/docs/libraries/react)
+- [API Reference](./packages/browser/README.md)
+
+## 🛠️ Development
+
+### Yêu cầu
+
+- Node.js >= 20
+- pnpm >= 8
+
+### Setup
+
+```bash
+# Clone repository
+git clone https://github.com/BTuyen/agrid-js.git
+cd agrid-js
+
+# Cài đặt dependencies
+pnpm install
+
+# Build tất cả packages
+pnpm build
+
+# Chạy tests
+pnpm test
+```
+
+### Cấu trúc thư mục
+
+```
+agrid-js/
+├── packages/          # Tất cả SDK packages
+│   ├── browser/       # Browser SDK
+│   ├── web/           # Lightweight web SDK
+│   ├── core/          # Core shared functionality
+│   ├── node/          # Node.js SDK
+│   ├── react/         # React SDK
+│   ├── react-native/  # React Native SDK
+│   └── ...
+├── examples/          # Example projects
+├── playground/        # Development playground
+├── tooling/          # Shared development tooling
+└── scripts/          # Build và utility scripts
+```
+
+### Scripts
+
+```bash
+# Build tất cả packages
+pnpm build
+
+# Watch mode cho development
+pnpm dev
+
+# Chạy tests
+pnpm test
+
+# Lint code
+pnpm lint
+
+# Tạo tarballs cho local testing
+pnpm package
+
+# Clean build artifacts
+pnpm clean
+```
+
+## 🤝 Contributing
+
+Chúng tôi hoan nghênh mọi đóng góp! Vui lòng xem [CONTRIBUTING.md](./CONTRIBUTING.md) để biết thêm chi tiết.
+
+### Quy trình
+
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Mở Pull Request
+
+## 📄 License
+
+MIT License - xem [LICENSE](./LICENSE) để biết thêm chi tiết.
+
+## 🔗 Links
+
+- **Website**: [agridhub.vn](https://agridhub.vn)
+- **Documentation**: [agridhub.vn/docs](https://agridhub.vn/docs)
+- **GitHub**: [github.com/BTuyen/agrid-js](https://github.com/BTuyen/agrid-js)
+- **Issues**: [GitHub Issues](https://github.com/BTuyen/agrid-js/issues)
+
+## 🙏 Acknowledgments
+
+Agrid JS được fork từ [PostHog JS](https://github.com/PostHog/posthog-js) và được tùy chỉnh cho nền tảng Agrid.
+
+Cảm ơn PostHog team đã tạo ra một codebase tuyệt vời!
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://agridhub.vn">Agrid Team</a>
+</p>
