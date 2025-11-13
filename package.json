@@ -2,11 +2,11 @@
     "name": "@agrid-js/core",
     "version": "1.5.2",
     "description": "Agrid JS core package - Monorepo containing multiple Agrid JavaScript SDKs",
-    "main": "packages/core/dist/index.js",
-    "types": "packages/core/dist/index.d.ts",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
     "files": [
-        "packages/core/dist",
-        "packages/core/src",
+        "dist",
         "README.md",
         "LICENSE"
     ],
@@ -22,7 +22,8 @@
     },
     "packageManager": "pnpm@10.12.4",
     "scripts": {
-        "build": "turbo build",
+        "build": "turbo build && npm run copy-dist",
+        "copy-dist": "mkdir -p dist && cp -r packages/core/dist/* dist/",
         "prepublishOnly": "npm run build",
         "build-rollup": "pnpm --filter=@agrid/browser build-rollup",
         "clean": "turbo clean",
