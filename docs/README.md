@@ -43,6 +43,16 @@ Chào mừng đến với tài liệu tích hợp Agrid JS!
 
 ## 📦 Packages
 
+### Main Package
+
+| Package | Mô tả | Tài liệu |
+|---------|-------|----------|
+| `agrid-js` | Core package (recommended) | [Main README](../README.md) |
+
+> ⚠️ **Deprecated**: `@agrid-js/core` đã được thay thế bằng `agrid-js`
+
+### SDK Packages
+
 | Package | Mô tả | Tài liệu |
 |---------|-------|----------|
 | `@agrid/browser` | Browser SDK chính | [Integration Guide](./INTEGRATION_GUIDE.md) |

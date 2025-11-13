@@ -25,6 +25,18 @@ Repository này cung cấp các SDK cho:
 
 ## 📦 Packages
 
+### Main Package
+
+**`agrid-js`** - Root package chứa core functionality của Agrid JS SDK.
+
+```bash
+npm install agrid-js
+```
+
+> ⚠️ **Lưu ý**: Package `@agrid-js/core` đã được deprecated. Vui lòng sử dụng `agrid-js` thay thế.
+
+### SDK Packages
+
 Repository này chứa các packages sau:
 
 | Package | NPM Name | Mô tả |
@@ -44,6 +56,9 @@ Repository này chứa các packages sau:
 ### Cài đặt
 
 ```bash
+# Core package (recommended)
+npm install agrid-js
+
 # Browser SDK
 npm install @agrid/browser
 
@@ -59,6 +74,8 @@ npm install @agrid/node
 # React Native SDK
 npm install @agrid/react-native
 ```
+
+> ⚠️ **Deprecated**: `@agrid-js/core` đã được thay thế bằng `agrid-js`. Vui lòng cập nhật dependencies của bạn.
 
 ### Sử dụng cơ bản
 
