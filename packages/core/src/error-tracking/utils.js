@@ -1,10 +1,9 @@
-"use strict";
 // Portions of this file are derived from getsentry/sentry-javascript by Software, Inc. dba Sentry
 // Licensed under the MIT License
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReduceableCache = void 0;
 /** A simple Least Recently Used map */
-class ReduceableCache {
+export class ReduceableCache {
+    _maxSize;
+    _cache;
     constructor(_maxSize) {
         this._maxSize = _maxSize;
         this._cache = new Map();
@@ -35,5 +34,3 @@ class ReduceableCache {
         }
     }
 }
-exports.ReduceableCache = ReduceableCache;
-//# sourceMappingURL=utils.js.map

@@ -1,25 +1,14 @@
-"use strict";
 // Portions of this file are derived from getsentry/sentry-javascript by Software, Inc. dba Sentry
 // Licensed under the MIT License
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.nodeStackLineParser = exports.opera11StackLineParser = exports.opera10StackLineParser = exports.geckoStackLineParser = exports.winjsStackLineParser = exports.chromeStackLineParser = void 0;
-exports.reverseAndStripFrames = reverseAndStripFrames;
-exports.createStackParser = createStackParser;
-const base_1 = require("./base");
-var chrome_1 = require("./chrome");
-Object.defineProperty(exports, "chromeStackLineParser", { enumerable: true, get: function () { return chrome_1.chromeStackLineParser; } });
-var winjs_1 = require("./winjs");
-Object.defineProperty(exports, "winjsStackLineParser", { enumerable: true, get: function () { return winjs_1.winjsStackLineParser; } });
-var gecko_1 = require("./gecko");
-Object.defineProperty(exports, "geckoStackLineParser", { enumerable: true, get: function () { return gecko_1.geckoStackLineParser; } });
-var opera_1 = require("./opera");
-Object.defineProperty(exports, "opera10StackLineParser", { enumerable: true, get: function () { return opera_1.opera10StackLineParser; } });
-Object.defineProperty(exports, "opera11StackLineParser", { enumerable: true, get: function () { return opera_1.opera11StackLineParser; } });
-var node_1 = require("./node");
-Object.defineProperty(exports, "nodeStackLineParser", { enumerable: true, get: function () { return node_1.nodeStackLineParser; } });
+import { UNKNOWN_FUNCTION } from './base';
+export { chromeStackLineParser } from './chrome';
+export { winjsStackLineParser } from './winjs';
+export { geckoStackLineParser } from './gecko';
+export { opera10StackLineParser, opera11StackLineParser } from './opera';
+export { nodeStackLineParser } from './node';
 const WEBPACK_ERROR_REGEXP = /\(error: (.*)\)/;
 const STACKTRACE_FRAME_LIMIT = 50;
-function reverseAndStripFrames(stack) {
+export function reverseAndStripFrames(stack) {
     if (!stack.length) {
         return [];
     }
@@ -28,13 +17,13 @@ function reverseAndStripFrames(stack) {
     return localStack.slice(0, STACKTRACE_FRAME_LIMIT).map((frame) => ({
         ...frame,
         filename: frame.filename || getLastStackFrame(localStack).filename,
-        function: frame.function || base_1.UNKNOWN_FUNCTION,
+        function: frame.function || UNKNOWN_FUNCTION,
     }));
 }
 function getLastStackFrame(arr) {
     return arr[arr.length - 1] || {};
 }
-function createStackParser(...parsers) {
+export function createStackParser(...parsers) {
     // const sortedParsers = parsers.sort((a, b) => a[0] - b[0]).map((p) => p[1])
     return (stack, skipFirstLines = 0) => {
         const frames = [];
@@ -70,4 +59,3 @@ function createStackParser(...parsers) {
         return reverseAndStripFrames(frames);
     };
 }
-//# sourceMappingURL=index.js.map

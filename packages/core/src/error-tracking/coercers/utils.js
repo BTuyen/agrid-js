@@ -1,8 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.truncate = truncate;
-exports.extractExceptionKeysForMessage = extractExceptionKeysForMessage;
-function truncate(str, max = 0) {
+export function truncate(str, max = 0) {
     if (typeof str !== 'string' || max === 0) {
         return str;
     }
@@ -13,7 +9,7 @@ function truncate(str, max = 0) {
  * and truncated list that will be used inside the event message.
  * eg. `Non-error exception captured with keys: foo, bar, baz`
  */
-function extractExceptionKeysForMessage(err, maxLength = 40) {
+export function extractExceptionKeysForMessage(err, maxLength = 40) {
     const keys = Object.keys(err);
     keys.sort();
     if (!keys.length) {
@@ -31,4 +27,3 @@ function extractExceptionKeysForMessage(err, maxLength = 40) {
     }
     return '';
 }
-//# sourceMappingURL=utils.js.map

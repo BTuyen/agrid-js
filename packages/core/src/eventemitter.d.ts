@@ -6,3 +6,4 @@ export declare class SimpleEventEmitter {
     on(event: string, listener: (...args: any[]) => void): () => void;
     emit(event: string, payload: any): void;
 }
+//# sourceMappingURL=eventemitter.d.ts.map

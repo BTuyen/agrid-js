@@ -10,3 +10,4 @@ export declare class ReduceableCache<K, V> {
     /** Remove an entry and return the entry if it was in the cache */
     reduce(): void;
 }
+//# sourceMappingURL=utils.d.ts.map

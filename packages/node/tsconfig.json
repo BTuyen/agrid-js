@@ -9,8 +9,10 @@
     "declaration": true,
     "declarationMap": true,
     "lib": ["ES2023"],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@agrid/core": ["../core/dist"]
     }
   },
   "include": ["./src/**/*", "rslib.config.ts"]

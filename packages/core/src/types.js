@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.knownUnsafeEditableEvent = exports.ActionStepStringMatching = exports.SurveyMatchType = exports.SurveyQuestionBranchingType = exports.SurveyQuestionType = exports.SurveyRatingDisplay = exports.SurveyQuestionDescriptionContentType = exports.SurveyType = exports.SurveyWidgetType = exports.SurveyPosition = exports.Compression = exports.PostHogPersistedProperty = void 0;
-var PostHogPersistedProperty;
+export var PostHogPersistedProperty;
 (function (PostHogPersistedProperty) {
     PostHogPersistedProperty["AnonymousId"] = "anonymous_id";
     PostHogPersistedProperty["DistinctId"] = "distinct_id";
@@ -28,14 +25,14 @@ var PostHogPersistedProperty;
     PostHogPersistedProperty["Surveys"] = "surveys";
     PostHogPersistedProperty["RemoteConfig"] = "remote_config";
     PostHogPersistedProperty["FlagsEndpointWasHit"] = "flags_endpoint_was_hit";
-})(PostHogPersistedProperty || (exports.PostHogPersistedProperty = PostHogPersistedProperty = {}));
+})(PostHogPersistedProperty || (PostHogPersistedProperty = {}));
 // Any key prefixed with `attr__` can be added
-var Compression;
+export var Compression;
 (function (Compression) {
     Compression["GZipJS"] = "gzip-js";
     Compression["Base64"] = "base64";
-})(Compression || (exports.Compression = Compression = {}));
-var SurveyPosition;
+})(Compression || (Compression = {}));
+export var SurveyPosition;
 (function (SurveyPosition) {
     SurveyPosition["TopLeft"] = "top_left";
     SurveyPosition["TopCenter"] = "top_center";
@@ -46,46 +43,46 @@ var SurveyPosition;
     SurveyPosition["Left"] = "left";
     SurveyPosition["Right"] = "right";
     SurveyPosition["Center"] = "center";
-})(SurveyPosition || (exports.SurveyPosition = SurveyPosition = {}));
-var SurveyWidgetType;
+})(SurveyPosition || (SurveyPosition = {}));
+export var SurveyWidgetType;
 (function (SurveyWidgetType) {
     SurveyWidgetType["Button"] = "button";
     SurveyWidgetType["Tab"] = "tab";
     SurveyWidgetType["Selector"] = "selector";
-})(SurveyWidgetType || (exports.SurveyWidgetType = SurveyWidgetType = {}));
-var SurveyType;
+})(SurveyWidgetType || (SurveyWidgetType = {}));
+export var SurveyType;
 (function (SurveyType) {
     SurveyType["Popover"] = "popover";
     SurveyType["API"] = "api";
     SurveyType["Widget"] = "widget";
     SurveyType["ExternalSurvey"] = "external_survey";
-})(SurveyType || (exports.SurveyType = SurveyType = {}));
-var SurveyQuestionDescriptionContentType;
+})(SurveyType || (SurveyType = {}));
+export var SurveyQuestionDescriptionContentType;
 (function (SurveyQuestionDescriptionContentType) {
     SurveyQuestionDescriptionContentType["Html"] = "html";
     SurveyQuestionDescriptionContentType["Text"] = "text";
-})(SurveyQuestionDescriptionContentType || (exports.SurveyQuestionDescriptionContentType = SurveyQuestionDescriptionContentType = {}));
-var SurveyRatingDisplay;
+})(SurveyQuestionDescriptionContentType || (SurveyQuestionDescriptionContentType = {}));
+export var SurveyRatingDisplay;
 (function (SurveyRatingDisplay) {
     SurveyRatingDisplay["Number"] = "number";
     SurveyRatingDisplay["Emoji"] = "emoji";
-})(SurveyRatingDisplay || (exports.SurveyRatingDisplay = SurveyRatingDisplay = {}));
-var SurveyQuestionType;
+})(SurveyRatingDisplay || (SurveyRatingDisplay = {}));
+export var SurveyQuestionType;
 (function (SurveyQuestionType) {
     SurveyQuestionType["Open"] = "open";
     SurveyQuestionType["MultipleChoice"] = "multiple_choice";
     SurveyQuestionType["SingleChoice"] = "single_choice";
     SurveyQuestionType["Rating"] = "rating";
     SurveyQuestionType["Link"] = "link";
-})(SurveyQuestionType || (exports.SurveyQuestionType = SurveyQuestionType = {}));
-var SurveyQuestionBranchingType;
+})(SurveyQuestionType || (SurveyQuestionType = {}));
+export var SurveyQuestionBranchingType;
 (function (SurveyQuestionBranchingType) {
     SurveyQuestionBranchingType["NextQuestion"] = "next_question";
     SurveyQuestionBranchingType["End"] = "end";
     SurveyQuestionBranchingType["ResponseBased"] = "response_based";
     SurveyQuestionBranchingType["SpecificQuestion"] = "specific_question";
-})(SurveyQuestionBranchingType || (exports.SurveyQuestionBranchingType = SurveyQuestionBranchingType = {}));
-var SurveyMatchType;
+})(SurveyQuestionBranchingType || (SurveyQuestionBranchingType = {}));
+export var SurveyMatchType;
 (function (SurveyMatchType) {
     SurveyMatchType["Regex"] = "regex";
     SurveyMatchType["NotRegex"] = "not_regex";
@@ -93,15 +90,15 @@ var SurveyMatchType;
     SurveyMatchType["IsNot"] = "is_not";
     SurveyMatchType["Icontains"] = "icontains";
     SurveyMatchType["NotIcontains"] = "not_icontains";
-})(SurveyMatchType || (exports.SurveyMatchType = SurveyMatchType = {}));
+})(SurveyMatchType || (SurveyMatchType = {}));
 /** Sync with plugin-server/src/types.ts */
-var ActionStepStringMatching;
+export var ActionStepStringMatching;
 (function (ActionStepStringMatching) {
     ActionStepStringMatching["Contains"] = "contains";
     ActionStepStringMatching["Exact"] = "exact";
     ActionStepStringMatching["Regex"] = "regex";
-})(ActionStepStringMatching || (exports.ActionStepStringMatching = ActionStepStringMatching = {}));
-exports.knownUnsafeEditableEvent = [
+})(ActionStepStringMatching || (ActionStepStringMatching = {}));
+export const knownUnsafeEditableEvent = [
     '$snapshot',
     '$pageview',
     '$pageleave',
@@ -117,4 +114,3 @@ exports.knownUnsafeEditableEvent = [
     '$feature_enrollment_update',
     '$feature_flag_called',
 ];
-//# sourceMappingURL=types.js.map

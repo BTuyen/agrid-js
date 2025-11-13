@@ -16,3 +16,4 @@ export declare class BucketedRateLimiter<T extends string | number> {
     consumeRateLimit(key: T): boolean;
     stop(): void;
 }
+//# sourceMappingURL=bucketed-rate-limiter.d.ts.map

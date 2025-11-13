@@ -168,3 +168,4 @@ export declare abstract class PostHogCore extends PostHogCoreStateless {
      */
     captureTraceMetric(traceId: string | number, metricName: string, metricValue: string | number | boolean): void;
 }
+//# sourceMappingURL=posthog-core.d.ts.map

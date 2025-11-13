@@ -1,20 +1,16 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ErrorEventCoercer = void 0;
-const utils_1 = require("@/utils");
-class ErrorEventCoercer {
+import { isErrorEvent } from '@/utils';
+export class ErrorEventCoercer {
     constructor() { }
     match(err) {
-        return (0, utils_1.isErrorEvent)(err) && err.error != undefined;
+        return isErrorEvent(err) && err.error != undefined;
     }
     coerce(err, ctx) {
-        var _a;
         const exceptionLike = ctx.apply(err.error);
         if (!exceptionLike) {
             return {
                 type: 'ErrorEvent',
                 value: err.message,
-                stack: (_a = ctx.syntheticException) === null || _a === void 0 ? void 0 : _a.stack,
+                stack: ctx.syntheticException?.stack,
                 synthetic: true,
             };
         }
@@ -23,5 +19,3 @@ class ErrorEventCoercer {
         }
     }
 }
-exports.ErrorEventCoercer = ErrorEventCoercer;
-//# sourceMappingURL=error-event-coercer.js.map

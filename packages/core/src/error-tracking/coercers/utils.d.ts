@@ -5,3 +5,4 @@ export declare function truncate(str: string, max?: number): string;
  * eg. `Non-error exception captured with keys: foo, bar, baz`
  */
 export declare function extractExceptionKeysForMessage(err: object, maxLength?: number): string;
+//# sourceMappingURL=utils.d.ts.map

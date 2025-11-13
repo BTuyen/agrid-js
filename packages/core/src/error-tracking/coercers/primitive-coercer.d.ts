@@ -4,3 +4,4 @@ export declare class PrimitiveCoercer implements ErrorTrackingCoercer<PrimitiveT
     match(candidate: unknown): candidate is PrimitiveType;
     coerce(value: PrimitiveType, ctx: CoercingContext): ExceptionLike | undefined;
 }
+//# sourceMappingURL=primitive-coercer.d.ts.map

@@ -27,3 +27,4 @@ export declare const yesLikeValues: (string | number | boolean)[];
 export declare const isYesLike: (val: string | boolean | number) => boolean;
 export declare const noLikeValues: (string | number | boolean)[];
 export declare const isNoLike: (val: string | boolean | number) => boolean;
+//# sourceMappingURL=type-utils.d.ts.map

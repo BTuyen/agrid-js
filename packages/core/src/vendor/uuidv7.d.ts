@@ -177,3 +177,4 @@ export declare const uuidv7obj: () => UUID;
 export declare const uuidv4: () => string;
 /** Generates a UUIDv4 object. */
 export declare const uuidv4obj: () => UUID;
+//# sourceMappingURL=uuidv7.d.ts.map

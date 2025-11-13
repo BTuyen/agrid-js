@@ -1,9 +1,6 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isBlockedUA = exports.DEFAULT_BLOCKED_UA_STRS = void 0;
 // List of blocked user agent strings that identify bots
 // This is shared between browser and node SDKs to ensure consistent bot detection
-exports.DEFAULT_BLOCKED_UA_STRS = [
+export const DEFAULT_BLOCKED_UA_STRS = [
     // Random assortment of bots
     'amazonbot',
     'amazonproductbot',
@@ -95,16 +92,14 @@ exports.DEFAULT_BLOCKED_UA_STRS = [
 /**
  * Block various web spiders from executing our JS and sending false capturing data
  */
-const isBlockedUA = function (ua, customBlockedUserAgents = []) {
+export const isBlockedUA = function (ua, customBlockedUserAgents = []) {
     if (!ua) {
         return false;
     }
     const uaLower = ua.toLowerCase();
-    return exports.DEFAULT_BLOCKED_UA_STRS.concat(customBlockedUserAgents).some((blockedUA) => {
+    return DEFAULT_BLOCKED_UA_STRS.concat(customBlockedUserAgents).some((blockedUA) => {
         const blockedUaLower = blockedUA.toLowerCase();
         // can't use includes because IE 11 :/
         return uaLower.indexOf(blockedUaLower) !== -1;
     });
 };
-exports.isBlockedUA = isBlockedUA;
-//# sourceMappingURL=bot-detection.js.map

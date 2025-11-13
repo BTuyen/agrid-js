@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ErrorCoercer = void 0;
-const utils_1 = require("@/utils");
-class ErrorCoercer {
+import { isPlainError } from '@/utils';
+export class ErrorCoercer {
     match(err) {
-        return (0, utils_1.isPlainError)(err);
+        return isPlainError(err);
     }
     coerce(err, ctx) {
         return {
@@ -29,5 +26,3 @@ class ErrorCoercer {
         return err.stacktrace || err.stack || undefined;
     }
 }
-exports.ErrorCoercer = ErrorCoercer;
-//# sourceMappingURL=error-coercer.js.map

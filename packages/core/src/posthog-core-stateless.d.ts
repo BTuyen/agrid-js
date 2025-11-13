@@ -203,3 +203,4 @@ export declare abstract class PostHogCoreStateless {
      */
     shutdown(shutdownTimeoutMs?: number): Promise<void>;
 }
+//# sourceMappingURL=posthog-core-stateless.d.ts.map

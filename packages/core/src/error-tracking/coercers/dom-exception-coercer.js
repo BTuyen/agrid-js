@@ -1,13 +1,10 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.DOMExceptionCoercer = void 0;
-const utils_1 = require("@/utils");
-class DOMExceptionCoercer {
+import { isBuiltin, isString } from '@/utils';
+export class DOMExceptionCoercer {
     match(err) {
         return this.isDOMException(err) || this.isDOMError(err);
     }
     coerce(err, ctx) {
-        const hasStack = (0, utils_1.isString)(err.stack);
+        const hasStack = isString(err.stack);
         return {
             type: this.getType(err),
             value: this.getValue(err),
@@ -25,11 +22,9 @@ class DOMExceptionCoercer {
         return message;
     }
     isDOMException(err) {
-        return (0, utils_1.isBuiltin)(err, 'DOMException');
+        return isBuiltin(err, 'DOMException');
     }
     isDOMError(err) {
-        return (0, utils_1.isBuiltin)(err, 'DOMError');
+        return isBuiltin(err, 'DOMError');
     }
 }
-exports.DOMExceptionCoercer = DOMExceptionCoercer;
-//# sourceMappingURL=dom-exception-coercer.js.map

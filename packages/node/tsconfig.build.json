@@ -1,7 +1,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"],
+      "@agrid/core": ["../../core/dist"]
+    }
   },
   "include": ["./src/**/*"],
   "exclude": ["./src/__tests__/**/*", "./src/**/*.spec.ts"]

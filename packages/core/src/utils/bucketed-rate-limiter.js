@@ -1,15 +1,16 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.BucketedRateLimiter = void 0;
-const number_utils_1 = require("./number-utils");
+import { clampToRange } from './number-utils';
 const ONE_DAY_IN_MS = 86400000;
-class BucketedRateLimiter {
+export class BucketedRateLimiter {
+    _bucketSize;
+    _refillRate;
+    _refillInterval;
+    _onBucketRateLimited;
+    _buckets = {};
     constructor(options) {
-        this._buckets = {};
         this._onBucketRateLimited = options._onBucketRateLimited;
-        this._bucketSize = (0, number_utils_1.clampToRange)(options.bucketSize, 0, 100, options._logger);
-        this._refillRate = (0, number_utils_1.clampToRange)(options.refillRate, 0, this._bucketSize, options._logger);
-        this._refillInterval = (0, number_utils_1.clampToRange)(options.refillInterval, 0, ONE_DAY_IN_MS, options._logger);
+        this._bucketSize = clampToRange(options.bucketSize, 0, 100, options._logger);
+        this._refillRate = clampToRange(options.refillRate, 0, this._bucketSize, options._logger);
+        this._refillInterval = clampToRange(options.refillInterval, 0, ONE_DAY_IN_MS, options._logger);
     }
     _applyRefill(bucket, now) {
         const elapsedMs = now - bucket.lastAccess;
@@ -21,7 +22,6 @@ class BucketedRateLimiter {
         }
     }
     consumeRateLimit(key) {
-        var _a;
         const now = Date.now();
         const keyStr = String(key);
         let bucket = this._buckets[keyStr];
@@ -37,7 +37,7 @@ class BucketedRateLimiter {
         }
         bucket.tokens--;
         if (bucket.tokens === 0) {
-            (_a = this._onBucketRateLimited) === null || _a === void 0 ? void 0 : _a.call(this, key);
+            this._onBucketRateLimited?.(key);
         }
         return bucket.tokens === 0;
     }
@@ -45,5 +45,3 @@ class BucketedRateLimiter {
         this._buckets = {};
     }
 }
-exports.BucketedRateLimiter = BucketedRateLimiter;
-//# sourceMappingURL=bucketed-rate-limiter.js.map

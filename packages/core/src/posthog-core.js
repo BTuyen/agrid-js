@@ -1,28 +1,28 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PostHogCore = void 0;
-const featureFlagUtils_1 = require("./featureFlagUtils");
-const types_1 = require("./types");
-const posthog_core_stateless_1 = require("./posthog-core-stateless");
-const uuidv7_1 = require("./vendor/uuidv7");
-const utils_1 = require("./utils");
-class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
+import { createFlagsResponseFromFlagsAndPayloads, getFeatureFlagValue, getFlagValuesFromFlags, getPayloadsFromFlags, normalizeFlagsResponse, updateFlagValue, } from './featureFlagUtils';
+import { Compression, PostHogPersistedProperty } from './types';
+import { maybeAdd, PostHogCoreStateless, QuotaLimitedFeature } from './posthog-core-stateless';
+import { uuidv7 } from './vendor/uuidv7';
+import { isPlainError } from './utils';
+export class PostHogCore extends PostHogCoreStateless {
+    // options
+    sendFeatureFlagEvent;
+    flagCallReported = {};
+    // internal
+    _flagsResponsePromise; // TODO: come back to this, fix typing
+    _sessionExpirationTimeSeconds;
+    _sessionMaxLengthSeconds = 24 * 60 * 60; // 24 hours
+    sessionProps = {};
     constructor(apiKey, options) {
-        var _a, _b, _c, _d;
         // Default for stateful mode is to not disable geoip. Only override if explicitly set
-        const disableGeoipOption = (_a = options === null || options === void 0 ? void 0 : options.disableGeoip) !== null && _a !== void 0 ? _a : false;
+        const disableGeoipOption = options?.disableGeoip ?? false;
         // Default for stateful mode is to timeout at 10s. Only override if explicitly set
-        const featureFlagsRequestTimeoutMs = (_b = options === null || options === void 0 ? void 0 : options.featureFlagsRequestTimeoutMs) !== null && _b !== void 0 ? _b : 10000; // 10 seconds
+        const featureFlagsRequestTimeoutMs = options?.featureFlagsRequestTimeoutMs ?? 10000; // 10 seconds
         super(apiKey, { ...options, disableGeoip: disableGeoipOption, featureFlagsRequestTimeoutMs });
-        this.flagCallReported = {};
-        this._sessionMaxLengthSeconds = 24 * 60 * 60; // 24 hours
-        this.sessionProps = {};
-        this.sendFeatureFlagEvent = (_c = options === null || options === void 0 ? void 0 : options.sendFeatureFlagEvent) !== null && _c !== void 0 ? _c : true;
-        this._sessionExpirationTimeSeconds = (_d = options === null || options === void 0 ? void 0 : options.sessionExpirationTimeSeconds) !== null && _d !== void 0 ? _d : 1800; // 30 minutes
+        this.sendFeatureFlagEvent = options?.sendFeatureFlagEvent ?? true;
+        this._sessionExpirationTimeSeconds = options?.sessionExpirationTimeSeconds ?? 1800; // 30 minutes
     }
     setupBootstrap(options) {
-        var _a;
-        const bootstrap = options === null || options === void 0 ? void 0 : options.bootstrap;
+        const bootstrap = options?.bootstrap;
         if (!bootstrap) {
             return;
         }
@@ -30,22 +30,22 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         // this is to prevent overwriting existing values
         if (bootstrap.distinctId) {
             if (bootstrap.isIdentifiedId) {
-                const distinctId = this.getPersistedProperty(types_1.PostHogPersistedProperty.DistinctId);
+                const distinctId = this.getPersistedProperty(PostHogPersistedProperty.DistinctId);
                 if (!distinctId) {
-                    this.setPersistedProperty(types_1.PostHogPersistedProperty.DistinctId, bootstrap.distinctId);
+                    this.setPersistedProperty(PostHogPersistedProperty.DistinctId, bootstrap.distinctId);
                 }
             }
             else {
-                const anonymousId = this.getPersistedProperty(types_1.PostHogPersistedProperty.AnonymousId);
+                const anonymousId = this.getPersistedProperty(PostHogPersistedProperty.AnonymousId);
                 if (!anonymousId) {
-                    this.setPersistedProperty(types_1.PostHogPersistedProperty.AnonymousId, bootstrap.distinctId);
+                    this.setPersistedProperty(PostHogPersistedProperty.AnonymousId, bootstrap.distinctId);
                 }
             }
         }
         const bootstrapFeatureFlags = bootstrap.featureFlags;
-        const bootstrapFeatureFlagPayloads = (_a = bootstrap.featureFlagPayloads) !== null && _a !== void 0 ? _a : {};
+        const bootstrapFeatureFlagPayloads = bootstrap.featureFlagPayloads ?? {};
         if (bootstrapFeatureFlags && Object.keys(bootstrapFeatureFlags).length) {
-            const normalizedBootstrapFeatureFlagDetails = (0, featureFlagUtils_1.createFlagsResponseFromFlagsAndPayloads)(bootstrapFeatureFlags, bootstrapFeatureFlagPayloads);
+            const normalizedBootstrapFeatureFlagDetails = createFlagsResponseFromFlagsAndPayloads(bootstrapFeatureFlags, bootstrapFeatureFlagPayloads);
             if (Object.keys(normalizedBootstrapFeatureFlagDetails.flags).length > 0) {
                 this.setBootstrappedFeatureFlagDetails(normalizedBootstrapFeatureFlagDetails);
                 const currentFeatureFlagDetails = this.getKnownFeatureFlagDetails() || { flags: {}, requestId: undefined };
@@ -70,12 +70,12 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     }
     reset(propertiesToKeep) {
         this.wrap(() => {
-            const allPropertiesToKeep = [types_1.PostHogPersistedProperty.Queue, ...(propertiesToKeep || [])];
+            const allPropertiesToKeep = [PostHogPersistedProperty.Queue, ...(propertiesToKeep || [])];
             // clean up props
             this.clearProps();
-            for (const key of Object.keys(types_1.PostHogPersistedProperty)) {
-                if (!allPropertiesToKeep.includes(types_1.PostHogPersistedProperty[key])) {
-                    this.setPersistedProperty(types_1.PostHogPersistedProperty[key], null);
+            for (const key of Object.keys(PostHogPersistedProperty)) {
+                if (!allPropertiesToKeep.includes(PostHogPersistedProperty[key])) {
+                    this.setPersistedProperty(PostHogPersistedProperty[key], null);
                 }
             }
             this.reloadFeatureFlags();
@@ -90,7 +90,7 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
             }
         }
         return {
-            ...(0, posthog_core_stateless_1.maybeAdd)('$active_feature_flags', featureFlags ? Object.keys(featureFlags) : undefined),
+            ...maybeAdd('$active_feature_flags', featureFlags ? Object.keys(featureFlags) : undefined),
             ...featureVariantProperties,
             ...super.getCommonEventProperties(),
         };
@@ -119,27 +119,27 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         if (!this._isInitialized) {
             return '';
         }
-        let sessionId = this.getPersistedProperty(types_1.PostHogPersistedProperty.SessionId);
-        const sessionLastTimestamp = this.getPersistedProperty(types_1.PostHogPersistedProperty.SessionLastTimestamp) || 0;
-        const sessionStartTimestamp = this.getPersistedProperty(types_1.PostHogPersistedProperty.SessionStartTimestamp) || 0;
+        let sessionId = this.getPersistedProperty(PostHogPersistedProperty.SessionId);
+        const sessionLastTimestamp = this.getPersistedProperty(PostHogPersistedProperty.SessionLastTimestamp) || 0;
+        const sessionStartTimestamp = this.getPersistedProperty(PostHogPersistedProperty.SessionStartTimestamp) || 0;
         const now = Date.now();
         const sessionLastDif = now - sessionLastTimestamp;
         const sessionStartDif = now - sessionStartTimestamp;
         if (!sessionId ||
             sessionLastDif > this._sessionExpirationTimeSeconds * 1000 ||
             sessionStartDif > this._sessionMaxLengthSeconds * 1000) {
-            sessionId = (0, uuidv7_1.uuidv7)();
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.SessionId, sessionId);
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.SessionStartTimestamp, now);
+            sessionId = uuidv7();
+            this.setPersistedProperty(PostHogPersistedProperty.SessionId, sessionId);
+            this.setPersistedProperty(PostHogPersistedProperty.SessionStartTimestamp, now);
         }
-        this.setPersistedProperty(types_1.PostHogPersistedProperty.SessionLastTimestamp, now);
+        this.setPersistedProperty(PostHogPersistedProperty.SessionLastTimestamp, now);
         return sessionId;
     }
     resetSessionId() {
         this.wrap(() => {
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.SessionId, null);
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.SessionLastTimestamp, null);
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.SessionStartTimestamp, null);
+            this.setPersistedProperty(PostHogPersistedProperty.SessionId, null);
+            this.setPersistedProperty(PostHogPersistedProperty.SessionLastTimestamp, null);
+            this.setPersistedProperty(PostHogPersistedProperty.SessionStartTimestamp, null);
         });
     }
     /**
@@ -165,10 +165,10 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         if (!this._isInitialized) {
             return '';
         }
-        let anonId = this.getPersistedProperty(types_1.PostHogPersistedProperty.AnonymousId);
+        let anonId = this.getPersistedProperty(PostHogPersistedProperty.AnonymousId);
         if (!anonId) {
-            anonId = (0, uuidv7_1.uuidv7)();
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.AnonymousId, anonId);
+            anonId = uuidv7();
+            this.setPersistedProperty(PostHogPersistedProperty.AnonymousId, anonId);
         }
         return anonId;
     }
@@ -179,7 +179,7 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         if (!this._isInitialized) {
             return '';
         }
-        return this.getPersistedProperty(types_1.PostHogPersistedProperty.DistinctId) || this.getAnonymousId();
+        return this.getPersistedProperty(PostHogPersistedProperty.DistinctId) || this.getAnonymousId();
     }
     registerForSession(properties) {
         this.sessionProps = {
@@ -197,23 +197,23 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         this.wrap(() => {
             const previousDistinctId = this.getDistinctId();
             distinctId = distinctId || previousDistinctId;
-            if (properties === null || properties === void 0 ? void 0 : properties.$groups) {
+            if (properties?.$groups) {
                 this.groups(properties.$groups);
             }
             // promote $set and $set_once to top level
-            const userPropsOnce = properties === null || properties === void 0 ? void 0 : properties.$set_once;
-            properties === null || properties === void 0 ? true : delete properties.$set_once;
+            const userPropsOnce = properties?.$set_once;
+            delete properties?.$set_once;
             // if no $set is provided we assume all properties are $set
-            const userProps = (properties === null || properties === void 0 ? void 0 : properties.$set) || properties;
+            const userProps = properties?.$set || properties;
             const allProperties = this.enrichProperties({
                 $anon_distinct_id: this.getAnonymousId(),
-                ...(0, posthog_core_stateless_1.maybeAdd)('$set', userProps),
-                ...(0, posthog_core_stateless_1.maybeAdd)('$set_once', userPropsOnce),
+                ...maybeAdd('$set', userProps),
+                ...maybeAdd('$set_once', userPropsOnce),
             });
             if (distinctId !== previousDistinctId) {
                 // We keep the AnonymousId to be used by flags calls and identify to link the previousId
-                this.setPersistedProperty(types_1.PostHogPersistedProperty.AnonymousId, previousDistinctId);
-                this.setPersistedProperty(types_1.PostHogPersistedProperty.DistinctId, distinctId);
+                this.setPersistedProperty(PostHogPersistedProperty.AnonymousId, previousDistinctId);
+                this.setPersistedProperty(PostHogPersistedProperty.DistinctId, distinctId);
                 this.reloadFeatureFlags();
             }
             super.identifyStateless(distinctId, allProperties, options);
@@ -222,7 +222,7 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     capture(event, properties, options) {
         this.wrap(() => {
             const distinctId = this.getDistinctId();
-            if (properties === null || properties === void 0 ? void 0 : properties.$groups) {
+            if (properties?.$groups) {
                 this.groups(properties.$groups);
             }
             const allProperties = this.enrichProperties(properties);
@@ -292,8 +292,8 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     setPersonPropertiesForFlags(properties) {
         this.wrap(() => {
             // Get persisted person properties
-            const existingProperties = this.getPersistedProperty(types_1.PostHogPersistedProperty.PersonProperties) || {};
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.PersonProperties, {
+            const existingProperties = this.getPersistedProperty(PostHogPersistedProperty.PersonProperties) || {};
+            this.setPersistedProperty(PostHogPersistedProperty.PersonProperties, {
                 ...existingProperties,
                 ...properties,
             });
@@ -301,13 +301,13 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     }
     resetPersonPropertiesForFlags() {
         this.wrap(() => {
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.PersonProperties, null);
+            this.setPersistedProperty(PostHogPersistedProperty.PersonProperties, null);
         });
     }
     setGroupPropertiesForFlags(properties) {
         this.wrap(() => {
             // Get persisted group properties
-            const existingProperties = this.getPersistedProperty(types_1.PostHogPersistedProperty.GroupProperties) ||
+            const existingProperties = this.getPersistedProperty(PostHogPersistedProperty.GroupProperties) ||
                 {};
             if (Object.keys(existingProperties).length !== 0) {
                 Object.keys(existingProperties).forEach((groupType) => {
@@ -318,7 +318,7 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
                     delete properties[groupType];
                 });
             }
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.GroupProperties, {
+            this.setPersistedProperty(PostHogPersistedProperty.GroupProperties, {
                 ...existingProperties,
                 ...properties,
             });
@@ -326,7 +326,7 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     }
     resetGroupPropertiesForFlags() {
         this.wrap(() => {
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.GroupProperties, null);
+            this.setPersistedProperty(PostHogPersistedProperty.GroupProperties, null);
         });
     }
     async remoteConfigAsync() {
@@ -347,25 +347,24 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         return this._flagsAsync(sendAnonDistinctId, fetchConfig);
     }
     cacheSessionReplay(source, response) {
-        const sessionReplay = response === null || response === void 0 ? void 0 : response.sessionRecording;
+        const sessionReplay = response?.sessionRecording;
         if (sessionReplay) {
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.SessionReplay, sessionReplay);
+            this.setPersistedProperty(PostHogPersistedProperty.SessionReplay, sessionReplay);
             this._logger.info(`Session replay config from ${source}: `, JSON.stringify(sessionReplay));
         }
         else if (typeof sessionReplay === 'boolean' && sessionReplay === false) {
             // if session replay is disabled, we don't need to cache it
             // we need to check for this because the response might be undefined (/flags does not return sessionRecording yet)
             this._logger.info(`Session replay config from ${source} disabled.`);
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.SessionReplay, null);
+            this.setPersistedProperty(PostHogPersistedProperty.SessionReplay, null);
         }
     }
     async _remoteConfigAsync() {
         this._remoteConfigResponsePromise = this._initPromise
             .then(() => {
-            let remoteConfig = this.getPersistedProperty(types_1.PostHogPersistedProperty.RemoteConfig);
+            let remoteConfig = this.getPersistedProperty(PostHogPersistedProperty.RemoteConfig);
             this._logger.info('Cached remote config: ', JSON.stringify(remoteConfig));
             return super.getRemoteConfig().then((response) => {
-                var _a;
                 if (response) {
                     const remoteConfigWithoutSurveys = { ...response };
                     delete remoteConfigWithoutSurveys.surveys;
@@ -382,17 +381,17 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
                             this._logger.info('Surveys fetched from remote config: ', JSON.stringify(surveys));
                         }
                         if (hasSurveys) {
-                            this.setPersistedProperty(types_1.PostHogPersistedProperty.Surveys, surveys);
+                            this.setPersistedProperty(PostHogPersistedProperty.Surveys, surveys);
                         }
                         else {
-                            this.setPersistedProperty(types_1.PostHogPersistedProperty.Surveys, null);
+                            this.setPersistedProperty(PostHogPersistedProperty.Surveys, null);
                         }
                     }
                     else {
-                        this.setPersistedProperty(types_1.PostHogPersistedProperty.Surveys, null);
+                        this.setPersistedProperty(PostHogPersistedProperty.Surveys, null);
                     }
                     // we cache the surveys in its own storage key
-                    this.setPersistedProperty(types_1.PostHogPersistedProperty.RemoteConfig, remoteConfigWithoutSurveys);
+                    this.setPersistedProperty(PostHogPersistedProperty.RemoteConfig, remoteConfigWithoutSurveys);
                     this.cacheSessionReplay('remote config', response);
                     // we only dont load flags if the remote config has no feature flags
                     if (response.hasFeatureFlags === false) {
@@ -403,7 +402,7 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
                     else if (this.preloadFeatureFlags !== false) {
                         this.reloadFeatureFlags();
                     }
-                    if (!((_a = response.supportedCompression) === null || _a === void 0 ? void 0 : _a.includes(types_1.Compression.GZipJS))) {
+                    if (!response.supportedCompression?.includes(Compression.GZipJS)) {
                         this.disableCompression = true;
                     }
                     remoteConfig = response;
@@ -419,24 +418,23 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     async _flagsAsync(sendAnonDistinctId = true, fetchConfig = true) {
         this._flagsResponsePromise = this._initPromise
             .then(async () => {
-            var _a;
             const distinctId = this.getDistinctId();
             const groups = this.props.$groups || {};
-            const personProperties = this.getPersistedProperty(types_1.PostHogPersistedProperty.PersonProperties) || {};
-            const groupProperties = this.getPersistedProperty(types_1.PostHogPersistedProperty.GroupProperties) ||
+            const personProperties = this.getPersistedProperty(PostHogPersistedProperty.PersonProperties) || {};
+            const groupProperties = this.getPersistedProperty(PostHogPersistedProperty.GroupProperties) ||
                 {};
             const extraProperties = {
                 $anon_distinct_id: sendAnonDistinctId ? this.getAnonymousId() : undefined,
             };
             const res = await super.getFlags(distinctId, groups, personProperties, groupProperties, extraProperties, fetchConfig);
             // Add check for quota limitation on feature flags
-            if ((_a = res === null || res === void 0 ? void 0 : res.quotaLimited) === null || _a === void 0 ? void 0 : _a.includes(posthog_core_stateless_1.QuotaLimitedFeature.FeatureFlags)) {
+            if (res?.quotaLimited?.includes(QuotaLimitedFeature.FeatureFlags)) {
                 // Unset all feature flags by setting to null
                 this.setKnownFeatureFlagDetails(null);
                 console.warn('[FEATURE FLAGS] Feature flags quota limit exceeded - unsetting all flags. Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts');
                 return res;
             }
-            if (res === null || res === void 0 ? void 0 : res.featureFlags) {
+            if (res?.featureFlags) {
                 // clear flag call reported if we have new flags since they might have changed
                 if (this.sendFeatureFlagEvent) {
                     this.flagCallReported = {};
@@ -448,12 +446,12 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
                     this._logger.info('Cached feature flags: ', JSON.stringify(currentFlagDetails));
                     newFeatureFlagDetails = {
                         ...res,
-                        flags: { ...currentFlagDetails === null || currentFlagDetails === void 0 ? void 0 : currentFlagDetails.flags, ...res.flags },
+                        flags: { ...currentFlagDetails?.flags, ...res.flags },
                     };
                 }
                 this.setKnownFeatureFlagDetails(newFeatureFlagDetails);
                 // Mark that we hit the /flags endpoint so we can capture this in the $feature_flag_called event
-                this.setPersistedProperty(types_1.PostHogPersistedProperty.FlagsEndpointWasHit, true);
+                this.setPersistedProperty(PostHogPersistedProperty.FlagsEndpointWasHit, true);
                 this.cacheSessionReplay('flags', res);
             }
             return res;
@@ -466,90 +464,88 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     // We only store the flags and request id in the feature flag details storage key
     setKnownFeatureFlagDetails(flagsResponse) {
         this.wrap(() => {
-            var _a;
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.FeatureFlagDetails, flagsResponse);
-            this._events.emit('featureflags', (0, featureFlagUtils_1.getFlagValuesFromFlags)((_a = flagsResponse === null || flagsResponse === void 0 ? void 0 : flagsResponse.flags) !== null && _a !== void 0 ? _a : {}));
+            this.setPersistedProperty(PostHogPersistedProperty.FeatureFlagDetails, flagsResponse);
+            this._events.emit('featureflags', getFlagValuesFromFlags(flagsResponse?.flags ?? {}));
         });
     }
     getKnownFeatureFlagDetails() {
-        const storedDetails = this.getPersistedProperty(types_1.PostHogPersistedProperty.FeatureFlagDetails);
+        const storedDetails = this.getPersistedProperty(PostHogPersistedProperty.FeatureFlagDetails);
         if (!storedDetails) {
             // Rebuild from the stored feature flags and feature flag payloads
-            const featureFlags = this.getPersistedProperty(types_1.PostHogPersistedProperty.FeatureFlags);
-            const featureFlagPayloads = this.getPersistedProperty(types_1.PostHogPersistedProperty.FeatureFlagPayloads);
+            const featureFlags = this.getPersistedProperty(PostHogPersistedProperty.FeatureFlags);
+            const featureFlagPayloads = this.getPersistedProperty(PostHogPersistedProperty.FeatureFlagPayloads);
             if (featureFlags === undefined && featureFlagPayloads === undefined) {
                 return undefined;
             }
-            return (0, featureFlagUtils_1.createFlagsResponseFromFlagsAndPayloads)(featureFlags !== null && featureFlags !== void 0 ? featureFlags : {}, featureFlagPayloads !== null && featureFlagPayloads !== void 0 ? featureFlagPayloads : {});
+            return createFlagsResponseFromFlagsAndPayloads(featureFlags ?? {}, featureFlagPayloads ?? {});
         }
-        return (0, featureFlagUtils_1.normalizeFlagsResponse)(storedDetails);
+        return normalizeFlagsResponse(storedDetails);
     }
     getKnownFeatureFlags() {
         const featureFlagDetails = this.getKnownFeatureFlagDetails();
         if (!featureFlagDetails) {
             return undefined;
         }
-        return (0, featureFlagUtils_1.getFlagValuesFromFlags)(featureFlagDetails.flags);
+        return getFlagValuesFromFlags(featureFlagDetails.flags);
     }
     getKnownFeatureFlagPayloads() {
         const featureFlagDetails = this.getKnownFeatureFlagDetails();
         if (!featureFlagDetails) {
             return undefined;
         }
-        return (0, featureFlagUtils_1.getPayloadsFromFlags)(featureFlagDetails.flags);
+        return getPayloadsFromFlags(featureFlagDetails.flags);
     }
     getBootstrappedFeatureFlagDetails() {
-        const details = this.getPersistedProperty(types_1.PostHogPersistedProperty.BootstrapFeatureFlagDetails);
+        const details = this.getPersistedProperty(PostHogPersistedProperty.BootstrapFeatureFlagDetails);
         if (!details) {
             return undefined;
         }
         return details;
     }
     setBootstrappedFeatureFlagDetails(details) {
-        this.setPersistedProperty(types_1.PostHogPersistedProperty.BootstrapFeatureFlagDetails, details);
+        this.setPersistedProperty(PostHogPersistedProperty.BootstrapFeatureFlagDetails, details);
     }
     getBootstrappedFeatureFlags() {
         const details = this.getBootstrappedFeatureFlagDetails();
         if (!details) {
             return undefined;
         }
-        return (0, featureFlagUtils_1.getFlagValuesFromFlags)(details.flags);
+        return getFlagValuesFromFlags(details.flags);
     }
     getBootstrappedFeatureFlagPayloads() {
         const details = this.getBootstrappedFeatureFlagDetails();
         if (!details) {
             return undefined;
         }
-        return (0, featureFlagUtils_1.getPayloadsFromFlags)(details.flags);
+        return getPayloadsFromFlags(details.flags);
     }
     getFeatureFlag(key) {
-        var _a, _b, _c, _d, _e, _f, _g;
         const details = this.getFeatureFlagDetails();
         if (!details) {
             // If we haven't loaded flags yet, or errored out, we respond with undefined
             return undefined;
         }
         const featureFlag = details.flags[key];
-        let response = (0, featureFlagUtils_1.getFeatureFlagValue)(featureFlag);
+        let response = getFeatureFlagValue(featureFlag);
         if (response === undefined) {
             // For cases where the flag is unknown, return false
             response = false;
         }
         if (this.sendFeatureFlagEvent && !this.flagCallReported[key]) {
-            const bootstrappedResponse = (_a = this.getBootstrappedFeatureFlags()) === null || _a === void 0 ? void 0 : _a[key];
-            const bootstrappedPayload = (_b = this.getBootstrappedFeatureFlagPayloads()) === null || _b === void 0 ? void 0 : _b[key];
+            const bootstrappedResponse = this.getBootstrappedFeatureFlags()?.[key];
+            const bootstrappedPayload = this.getBootstrappedFeatureFlagPayloads()?.[key];
             this.flagCallReported[key] = true;
             this.capture('$feature_flag_called', {
                 $feature_flag: key,
                 $feature_flag_response: response,
-                ...(0, posthog_core_stateless_1.maybeAdd)('$feature_flag_id', (_c = featureFlag === null || featureFlag === void 0 ? void 0 : featureFlag.metadata) === null || _c === void 0 ? void 0 : _c.id),
-                ...(0, posthog_core_stateless_1.maybeAdd)('$feature_flag_version', (_d = featureFlag === null || featureFlag === void 0 ? void 0 : featureFlag.metadata) === null || _d === void 0 ? void 0 : _d.version),
-                ...(0, posthog_core_stateless_1.maybeAdd)('$feature_flag_reason', (_f = (_e = featureFlag === null || featureFlag === void 0 ? void 0 : featureFlag.reason) === null || _e === void 0 ? void 0 : _e.description) !== null && _f !== void 0 ? _f : (_g = featureFlag === null || featureFlag === void 0 ? void 0 : featureFlag.reason) === null || _g === void 0 ? void 0 : _g.code),
-                ...(0, posthog_core_stateless_1.maybeAdd)('$feature_flag_bootstrapped_response', bootstrappedResponse),
-                ...(0, posthog_core_stateless_1.maybeAdd)('$feature_flag_bootstrapped_payload', bootstrappedPayload),
+                ...maybeAdd('$feature_flag_id', featureFlag?.metadata?.id),
+                ...maybeAdd('$feature_flag_version', featureFlag?.metadata?.version),
+                ...maybeAdd('$feature_flag_reason', featureFlag?.reason?.description ?? featureFlag?.reason?.code),
+                ...maybeAdd('$feature_flag_bootstrapped_response', bootstrappedResponse),
+                ...maybeAdd('$feature_flag_bootstrapped_payload', bootstrappedPayload),
                 // If we haven't yet received a response from the /flags endpoint, we must have used the bootstrapped value
-                $used_bootstrap_value: !this.getPersistedProperty(types_1.PostHogPersistedProperty.FlagsEndpointWasHit),
-                ...(0, posthog_core_stateless_1.maybeAdd)('$feature_flag_request_id', details.requestId),
+                $used_bootstrap_value: !this.getPersistedProperty(PostHogPersistedProperty.FlagsEndpointWasHit),
+                ...maybeAdd('$feature_flag_request_id', details.requestId),
             });
         }
         // If we have flags we either return the value (true or string) or false
@@ -568,39 +564,36 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         return response;
     }
     getFeatureFlagPayloads() {
-        var _a;
-        return (_a = this.getFeatureFlagDetails()) === null || _a === void 0 ? void 0 : _a.featureFlagPayloads;
+        return this.getFeatureFlagDetails()?.featureFlagPayloads;
     }
     getFeatureFlags() {
-        var _a;
         // NOTE: We don't check for _initPromise here as the function is designed to be
         // callable before the state being loaded anyways
-        return (_a = this.getFeatureFlagDetails()) === null || _a === void 0 ? void 0 : _a.featureFlags;
+        return this.getFeatureFlagDetails()?.featureFlags;
     }
     getFeatureFlagDetails() {
-        var _a;
         // NOTE: We don't check for _initPromise here as the function is designed to be
         // callable before the state being loaded anyways
         let details = this.getKnownFeatureFlagDetails();
-        const overriddenFlags = this.getPersistedProperty(types_1.PostHogPersistedProperty.OverrideFeatureFlags);
+        const overriddenFlags = this.getPersistedProperty(PostHogPersistedProperty.OverrideFeatureFlags);
         if (!overriddenFlags) {
             return details;
         }
-        details = details !== null && details !== void 0 ? details : { featureFlags: {}, featureFlagPayloads: {}, flags: {} };
-        const flags = (_a = details.flags) !== null && _a !== void 0 ? _a : {};
+        details = details ?? { featureFlags: {}, featureFlagPayloads: {}, flags: {} };
+        const flags = details.flags ?? {};
         for (const key in overriddenFlags) {
             if (!overriddenFlags[key]) {
                 delete flags[key];
             }
             else {
-                flags[key] = (0, featureFlagUtils_1.updateFlagValue)(flags[key], overriddenFlags[key]);
+                flags[key] = updateFlagValue(flags[key], overriddenFlags[key]);
             }
         }
         const result = {
             ...details,
             flags,
         };
-        return (0, featureFlagUtils_1.normalizeFlagsResponse)(result);
+        return normalizeFlagsResponse(result);
     }
     getFeatureFlagsAndPayloads() {
         const flags = this.getFeatureFlags();
@@ -621,13 +614,11 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     reloadFeatureFlags(options) {
         this.flagsAsync(true)
             .then((res) => {
-            var _a;
-            (_a = options === null || options === void 0 ? void 0 : options.cb) === null || _a === void 0 ? void 0 : _a.call(options, undefined, res === null || res === void 0 ? void 0 : res.featureFlags);
+            options?.cb?.(undefined, res?.featureFlags);
         })
             .catch((e) => {
-            var _a;
-            (_a = options === null || options === void 0 ? void 0 : options.cb) === null || _a === void 0 ? void 0 : _a.call(options, e, undefined);
-            if (!(options === null || options === void 0 ? void 0 : options.cb)) {
+            options?.cb?.(e, undefined);
+            if (!options?.cb) {
                 this._logger.info('Error reloading feature flags', e);
             }
         });
@@ -636,8 +627,7 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         return await this.remoteConfigAsync();
     }
     async reloadFeatureFlagsAsync(sendAnonDistinctId) {
-        var _a;
-        return (_a = (await this.flagsAsync(sendAnonDistinctId !== null && sendAnonDistinctId !== void 0 ? sendAnonDistinctId : true))) === null || _a === void 0 ? void 0 : _a.featureFlags;
+        return (await this.flagsAsync(sendAnonDistinctId ?? true))?.featureFlags;
     }
     onFeatureFlags(cb) {
         return this.on('featureflags', async () => {
@@ -658,9 +648,9 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
     async overrideFeatureFlag(flags) {
         this.wrap(() => {
             if (flags === null) {
-                return this.setPersistedProperty(types_1.PostHogPersistedProperty.OverrideFeatureFlags, null);
+                return this.setPersistedProperty(PostHogPersistedProperty.OverrideFeatureFlags, null);
             }
-            return this.setPersistedProperty(types_1.PostHogPersistedProperty.OverrideFeatureFlags, flags);
+            return this.setPersistedProperty(PostHogPersistedProperty.OverrideFeatureFlags, flags);
         });
     }
     /**
@@ -699,8 +689,8 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
             $exception_level: 'error',
             $exception_list: [
                 {
-                    type: (0, utils_1.isPlainError)(error) ? error.name : 'Error',
-                    value: (0, utils_1.isPlainError)(error) ? error.message : error,
+                    type: isPlainError(error) ? error.name : 'Error',
+                    value: isPlainError(error) ? error.message : error,
                     mechanism: {
                         handled: true,
                         synthetic: false,
@@ -746,5 +736,3 @@ class PostHogCore extends posthog_core_stateless_1.PostHogCoreStateless {
         });
     }
 }
-exports.PostHogCore = PostHogCore;
-//# sourceMappingURL=posthog-core.js.map

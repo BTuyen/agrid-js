@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.clampToRange = clampToRange;
-const type_utils_1 = require("./type-utils");
+import { isNumber } from './type-utils';
 /**
  * Clamps a value to a range.
  * @param value the value to clamp
@@ -10,12 +7,12 @@ const type_utils_1 = require("./type-utils");
  * @param label if provided then enables logging and prefixes all logs with labels
  * @param fallbackValue if provided then returns this value if the value is not a valid number
  */
-function clampToRange(value, min, max, logger, fallbackValue) {
+export function clampToRange(value, min, max, logger, fallbackValue) {
     if (min > max) {
         logger.warn('min cannot be greater than max.');
         min = max;
     }
-    if (!(0, type_utils_1.isNumber)(value)) {
+    if (!isNumber(value)) {
         logger.warn(' must be a number. using max or fallback. max: ' + max + ', fallback: ' + fallbackValue);
         return clampToRange(fallbackValue || max, min, max, logger);
     }
@@ -31,4 +28,3 @@ function clampToRange(value, min, max, logger, fallbackValue) {
         return value;
     }
 }
-//# sourceMappingURL=number-utils.js.map

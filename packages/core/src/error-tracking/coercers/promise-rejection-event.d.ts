@@ -4,3 +4,4 @@ export declare class PromiseRejectionEventCoercer implements ErrorTrackingCoerce
     coerce(err: PromiseRejectionEvent, ctx: CoercingContext): ExceptionLike | undefined;
     private getUnhandledRejectionReason;
 }
+//# sourceMappingURL=promise-rejection-event.d.ts.map

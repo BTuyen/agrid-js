@@ -4,3 +4,4 @@ export declare class ErrorEventCoercer implements ErrorTrackingCoercer<ErrorEven
     match(err: unknown): err is ErrorEvent;
     coerce(err: ErrorEvent, ctx: CoercingContext): ExceptionLike;
 }
+//# sourceMappingURL=error-event-coercer.d.ts.map

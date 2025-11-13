@@ -27,3 +27,4 @@ export declare function allSettled<T>(promises: (Promise<T> | null | undefined)[
     status: 'rejected';
     reason: any;
 })[]>;
+//# sourceMappingURL=index.d.ts.map

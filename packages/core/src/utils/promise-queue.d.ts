@@ -4,3 +4,4 @@ export declare class PromiseQueue {
     join(): Promise<void>;
     get length(): number;
 }
+//# sourceMappingURL=promise-queue.d.ts.map

@@ -1,12 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.nodeStackLineParser = void 0;
-const base_1 = require("./base");
+import { UNKNOWN_FUNCTION } from './base';
 /** Node Stack line parser */
 const FILENAME_MATCH = /^\s*[-]{4,}$/;
 const FULL_MATCH = /at (?:async )?(?:(.+?)\s+\()?(?:(.+):(\d+):(\d+)?|([^)]+))\)?/;
-const nodeStackLineParser = (line) => {
-    var _a;
+export const nodeStackLineParser = (line) => {
     const lineMatch = line.match(FULL_MATCH);
     if (lineMatch) {
         let object;
@@ -40,13 +36,13 @@ const nodeStackLineParser = (line) => {
             functionName = undefined;
         }
         if (functionName === undefined) {
-            methodName = methodName || base_1.UNKNOWN_FUNCTION;
+            methodName = methodName || UNKNOWN_FUNCTION;
             functionName = typeName ? `${typeName}.${methodName}` : methodName;
         }
-        let filename = ((_a = lineMatch[2]) === null || _a === void 0 ? void 0 : _a.startsWith('file://')) ? lineMatch[2].slice(7) : lineMatch[2];
+        let filename = lineMatch[2]?.startsWith('file://') ? lineMatch[2].slice(7) : lineMatch[2];
         const isNative = lineMatch[5] === 'native';
         // If it's a Windows path, trim the leading slash so that `/C:/foo` becomes `C:/foo`
-        if (filename === null || filename === void 0 ? void 0 : filename.match(/\/[A-Z]:/)) {
+        if (filename?.match(/\/[A-Z]:/)) {
             filename = filename.slice(1);
         }
         if (!filename && lineMatch[5] && !isNative) {
@@ -70,7 +66,6 @@ const nodeStackLineParser = (line) => {
     }
     return undefined;
 };
-exports.nodeStackLineParser = nodeStackLineParser;
 /**
  * Does this filename look like it's part of the app code?
  */
@@ -93,4 +88,3 @@ function filenameIsInApp(filename, isNative = false) {
 function _parseIntOrUndefined(input) {
     return parseInt(input || '', 10) || undefined;
 }
-//# sourceMappingURL=node.js.map

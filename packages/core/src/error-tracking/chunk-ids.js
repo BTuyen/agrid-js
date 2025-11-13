@@ -1,12 +1,9 @@
-"use strict";
 // Portions of this file are derived from getsentry/sentry-javascript by Software, Inc. dba Sentry
 // Licensed under the MIT License
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFilenameToChunkIdMap = getFilenameToChunkIdMap;
 let parsedStackResults;
 let lastKeysCount;
 let cachedFilenameChunkIds;
-function getFilenameToChunkIdMap(stackParser) {
+export function getFilenameToChunkIdMap(stackParser) {
     const chunkIdMap = globalThis._posthogChunkIds;
     if (!chunkIdMap) {
         return undefined;
@@ -28,7 +25,7 @@ function getFilenameToChunkIdMap(stackParser) {
             const parsedStack = stackParser(stackKey);
             for (let i = parsedStack.length - 1; i >= 0; i--) {
                 const stackFrame = parsedStack[i];
-                const filename = stackFrame === null || stackFrame === void 0 ? void 0 : stackFrame.filename;
+                const filename = stackFrame?.filename;
                 const chunkId = chunkIdMap[stackKey];
                 if (filename && chunkId) {
                     acc[filename] = chunkId;
@@ -41,4 +38,3 @@ function getFilenameToChunkIdMap(stackParser) {
     }, {});
     return cachedFilenameChunkIds;
 }
-//# sourceMappingURL=chunk-ids.js.map

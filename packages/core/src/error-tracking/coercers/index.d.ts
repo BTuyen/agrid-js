@@ -6,3 +6,4 @@ export * from './object-coercer';
 export * from './event-coercer';
 export * from './primitive-coercer';
 export * from './promise-rejection-event';
+//# sourceMappingURL=index.d.ts.map

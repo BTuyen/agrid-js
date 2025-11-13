@@ -11,3 +11,4 @@ export declare class ObjectCoercer implements ErrorTrackingCoercer<ObjectLike> {
     private getObjectClassName;
 }
 export {};
+//# sourceMappingURL=object-coercer.d.ts.map

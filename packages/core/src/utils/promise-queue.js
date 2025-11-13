@@ -1,13 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PromiseQueue = void 0;
-const uuidv7_1 = require("../vendor/uuidv7");
-class PromiseQueue {
-    constructor() {
-        this.promiseByIds = {};
-    }
+import { uuidv7 } from '../vendor/uuidv7';
+export class PromiseQueue {
+    promiseByIds = {};
     add(promise) {
-        const promiseUUID = (0, uuidv7_1.uuidv7)();
+        const promiseUUID = uuidv7();
         this.promiseByIds[promiseUUID] = promise;
         promise
             .catch(() => { })
@@ -29,5 +24,3 @@ class PromiseQueue {
         return Object.keys(this.promiseByIds).length;
     }
 }
-exports.PromiseQueue = PromiseQueue;
-//# sourceMappingURL=promise-queue.js.map

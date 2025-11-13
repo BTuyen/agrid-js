@@ -8,3 +8,4 @@ import { Logger } from '../types';
  * @param fallbackValue if provided then returns this value if the value is not a valid number
  */
 export declare function clampToRange(value: unknown, min: number, max: number, logger: Logger, fallbackValue?: number): number;
+//# sourceMappingURL=number-utils.d.ts.map

@@ -1,18 +1,14 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isGzipSupported = isGzipSupported;
-exports.gzipCompress = gzipCompress;
 /**
  * Older browsers and some runtimes don't support this yet
  * This API (as of 2025-05-07) is not available on React Native.
  */
-function isGzipSupported() {
+export function isGzipSupported() {
     return 'CompressionStream' in globalThis;
 }
 /**
  * Gzip a string using Compression Streams API if it's available
  */
-async function gzipCompress(input, isDebug = true) {
+export async function gzipCompress(input, isDebug = true) {
     try {
         // Turn the string into a stream using a Blob, and then compress it
         const dataStream = new Blob([input], {
@@ -29,4 +25,3 @@ async function gzipCompress(input, isDebug = true) {
         return null;
     }
 }
-//# sourceMappingURL=gzip.js.map

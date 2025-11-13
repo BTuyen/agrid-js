@@ -1,20 +1,16 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PromiseRejectionEventCoercer = void 0;
-const utils_1 = require("@/utils");
+import { isBuiltin, isPrimitive } from '@/utils';
 // Web only
-class PromiseRejectionEventCoercer {
+export class PromiseRejectionEventCoercer {
     match(err) {
-        return (0, utils_1.isBuiltin)(err, 'PromiseRejectionEvent');
+        return isBuiltin(err, 'PromiseRejectionEvent');
     }
     coerce(err, ctx) {
-        var _a;
         const reason = this.getUnhandledRejectionReason(err);
-        if ((0, utils_1.isPrimitive)(reason)) {
+        if (isPrimitive(reason)) {
             return {
                 type: 'UnhandledRejection',
                 value: `Non-Error promise rejection captured with value: ${String(reason)}`,
-                stack: (_a = ctx.syntheticException) === null || _a === void 0 ? void 0 : _a.stack,
+                stack: ctx.syntheticException?.stack,
                 synthetic: true,
             };
         }
@@ -23,7 +19,7 @@ class PromiseRejectionEventCoercer {
         }
     }
     getUnhandledRejectionReason(error) {
-        if ((0, utils_1.isPrimitive)(error)) {
+        if (isPrimitive(error)) {
             return error;
         }
         // dig the object of the rejection out of known event types
@@ -48,5 +44,3 @@ class PromiseRejectionEventCoercer {
         return error;
     }
 }
-exports.PromiseRejectionEventCoercer = PromiseRejectionEventCoercer;
-//# sourceMappingURL=promise-rejection-event.js.map

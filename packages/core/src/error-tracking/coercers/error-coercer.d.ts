@@ -6,3 +6,4 @@ export declare class ErrorCoercer implements ErrorTrackingCoercer<Error> {
     private getMessage;
     private getStack;
 }
+//# sourceMappingURL=error-coercer.d.ts.map

@@ -1,20 +1,18 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PostHogCoreStateless = exports.QuotaLimitedFeature = exports.maybeAdd = void 0;
-exports.logFlushError = logFlushError;
-const eventemitter_1 = require("./eventemitter");
-const featureFlagUtils_1 = require("./featureFlagUtils");
-const gzip_1 = require("./gzip");
-const logger_1 = require("./logger");
-const types_1 = require("./types");
-const utils_1 = require("./utils");
-const uuidv7_1 = require("./vendor/uuidv7");
+import { SimpleEventEmitter } from './eventemitter';
+import { getFeatureFlagValue, normalizeFlagsResponse } from './featureFlagUtils';
+import { gzipCompress, isGzipSupported } from './gzip';
+import { createLogger } from './logger';
+import { PostHogPersistedProperty, } from './types';
+import { allSettled, assert, currentISOTime, PromiseQueue, removeTrailingSlash, retriable, safeSetTimeout, STRING_FORMAT, } from './utils';
+import { uuidv7 } from './vendor/uuidv7';
 class PostHogFetchHttpError extends Error {
+    response;
+    reqByteLength;
+    name = 'PostHogFetchHttpError';
     constructor(response, reqByteLength) {
         super('HTTP error while fetching PostHog: status=' + response.status + ', reqByteLength=' + reqByteLength);
         this.response = response;
         this.reqByteLength = reqByteLength;
-        this.name = 'PostHogFetchHttpError';
     }
     get status() {
         return this.response.status;
@@ -27,18 +25,18 @@ class PostHogFetchHttpError extends Error {
     }
 }
 class PostHogFetchNetworkError extends Error {
+    error;
+    name = 'PostHogFetchNetworkError';
     constructor(error) {
         // TRICKY: "cause" is a newer property but is just ignored otherwise. Cast to any to ignore the type issue.
         // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
         // @ts-ignore
         super('Network error while fetching PostHog', error instanceof Error ? { cause: error } : {});
         this.error = error;
-        this.name = 'PostHogFetchNetworkError';
     }
 }
-const maybeAdd = (key, value) => value !== undefined ? { [key]: value } : {};
-exports.maybeAdd = maybeAdd;
-async function logFlushError(err) {
+export const maybeAdd = (key, value) => value !== undefined ? { [key]: value } : {};
+export async function logFlushError(err) {
     if (err instanceof PostHogFetchHttpError) {
         let text = '';
         try {
@@ -58,48 +56,71 @@ function isPostHogFetchError(err) {
 function isPostHogFetchContentTooLargeError(err) {
     return typeof err === 'object' && err instanceof PostHogFetchHttpError && err.status === 413;
 }
-var QuotaLimitedFeature;
+export var QuotaLimitedFeature;
 (function (QuotaLimitedFeature) {
     QuotaLimitedFeature["FeatureFlags"] = "feature_flags";
     QuotaLimitedFeature["Recordings"] = "recordings";
-})(QuotaLimitedFeature || (exports.QuotaLimitedFeature = QuotaLimitedFeature = {}));
-class PostHogCoreStateless {
+})(QuotaLimitedFeature || (QuotaLimitedFeature = {}));
+export class PostHogCoreStateless {
+    // options
+    apiKey;
+    host;
+    flushAt;
+    preloadFeatureFlags;
+    disableSurveys;
+    maxBatchSize;
+    maxQueueSize;
+    flushInterval;
+    flushPromise = null;
+    shutdownPromise = null;
+    requestTimeout;
+    featureFlagsRequestTimeoutMs;
+    remoteConfigRequestTimeoutMs;
+    removeDebugCallback;
+    disableGeoip;
+    historicalMigration;
+    evaluationEnvironments;
+    disabled;
+    disableCompression;
+    defaultOptIn;
+    promiseQueue = new PromiseQueue();
+    // internal
+    _events = new SimpleEventEmitter();
+    _flushTimer;
+    _retryOptions;
+    _initPromise;
+    _isInitialized = false;
+    _remoteConfigResponsePromise;
+    _logger;
     constructor(apiKey, options = {}) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
-        this.flushPromise = null;
-        this.shutdownPromise = null;
-        this.promiseQueue = new utils_1.PromiseQueue();
-        // internal
-        this._events = new eventemitter_1.SimpleEventEmitter();
-        this._isInitialized = false;
-        (0, utils_1.assert)(apiKey, "You must pass your PostHog project's api key.");
+        assert(apiKey, "You must pass your PostHog project's api key.");
         this.apiKey = apiKey;
-        this.host = (0, utils_1.removeTrailingSlash)(options.host || 'https://us.i.posthog.com');
+        this.host = removeTrailingSlash(options.host || 'https://us.i.posthog.com');
         this.flushAt = options.flushAt ? Math.max(options.flushAt, 1) : 20;
-        this.maxBatchSize = Math.max(this.flushAt, (_a = options.maxBatchSize) !== null && _a !== void 0 ? _a : 100);
-        this.maxQueueSize = Math.max(this.flushAt, (_b = options.maxQueueSize) !== null && _b !== void 0 ? _b : 1000);
-        this.flushInterval = (_c = options.flushInterval) !== null && _c !== void 0 ? _c : 10000;
-        this.preloadFeatureFlags = (_d = options.preloadFeatureFlags) !== null && _d !== void 0 ? _d : true;
+        this.maxBatchSize = Math.max(this.flushAt, options.maxBatchSize ?? 100);
+        this.maxQueueSize = Math.max(this.flushAt, options.maxQueueSize ?? 1000);
+        this.flushInterval = options.flushInterval ?? 10000;
+        this.preloadFeatureFlags = options.preloadFeatureFlags ?? true;
         // If enable is explicitly set to false we override the optout
-        this.defaultOptIn = (_e = options.defaultOptIn) !== null && _e !== void 0 ? _e : true;
-        this.disableSurveys = (_f = options.disableSurveys) !== null && _f !== void 0 ? _f : false;
+        this.defaultOptIn = options.defaultOptIn ?? true;
+        this.disableSurveys = options.disableSurveys ?? false;
         this._retryOptions = {
-            retryCount: (_g = options.fetchRetryCount) !== null && _g !== void 0 ? _g : 3,
-            retryDelay: (_h = options.fetchRetryDelay) !== null && _h !== void 0 ? _h : 3000, // 3 seconds
+            retryCount: options.fetchRetryCount ?? 3,
+            retryDelay: options.fetchRetryDelay ?? 3000, // 3 seconds
             retryCheck: isPostHogFetchError,
         };
-        this.requestTimeout = (_j = options.requestTimeout) !== null && _j !== void 0 ? _j : 10000; // 10 seconds
-        this.featureFlagsRequestTimeoutMs = (_k = options.featureFlagsRequestTimeoutMs) !== null && _k !== void 0 ? _k : 3000; // 3 seconds
-        this.remoteConfigRequestTimeoutMs = (_l = options.remoteConfigRequestTimeoutMs) !== null && _l !== void 0 ? _l : 3000; // 3 seconds
-        this.disableGeoip = (_m = options.disableGeoip) !== null && _m !== void 0 ? _m : true;
-        this.disabled = (_o = options.disabled) !== null && _o !== void 0 ? _o : false;
-        this.historicalMigration = (_p = options === null || options === void 0 ? void 0 : options.historicalMigration) !== null && _p !== void 0 ? _p : false;
-        this.evaluationEnvironments = options === null || options === void 0 ? void 0 : options.evaluationEnvironments;
+        this.requestTimeout = options.requestTimeout ?? 10000; // 10 seconds
+        this.featureFlagsRequestTimeoutMs = options.featureFlagsRequestTimeoutMs ?? 3000; // 3 seconds
+        this.remoteConfigRequestTimeoutMs = options.remoteConfigRequestTimeoutMs ?? 3000; // 3 seconds
+        this.disableGeoip = options.disableGeoip ?? true;
+        this.disabled = options.disabled ?? false;
+        this.historicalMigration = options?.historicalMigration ?? false;
+        this.evaluationEnvironments = options?.evaluationEnvironments;
         // Init promise allows the derived class to block calls until it is ready
         this._initPromise = Promise.resolve();
         this._isInitialized = true;
-        this._logger = (0, logger_1.createLogger)('[PostHog]', this.logMsgIfDebug.bind(this));
-        this.disableCompression = !(0, gzip_1.isGzipSupported)() || ((_q = options === null || options === void 0 ? void 0 : options.disableCompression) !== null && _q !== void 0 ? _q : false);
+        this._logger = createLogger('[PostHog]', this.logMsgIfDebug.bind(this));
+        this.disableCompression = !isGzipSupported() || (options?.disableCompression ?? false);
     }
     logMsgIfDebug(fn) {
         if (this.isDebug) {
@@ -124,17 +145,16 @@ class PostHogCoreStateless {
         };
     }
     get optedOut() {
-        var _a;
-        return (_a = this.getPersistedProperty(types_1.PostHogPersistedProperty.OptedOut)) !== null && _a !== void 0 ? _a : !this.defaultOptIn;
+        return this.getPersistedProperty(PostHogPersistedProperty.OptedOut) ?? !this.defaultOptIn;
     }
     async optIn() {
         this.wrap(() => {
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.OptedOut, false);
+            this.setPersistedProperty(PostHogPersistedProperty.OptedOut, false);
         });
     }
     async optOut() {
         this.wrap(() => {
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.OptedOut, true);
+            this.setPersistedProperty(PostHogPersistedProperty.OptedOut, true);
         });
     }
     on(event, cb) {
@@ -166,8 +186,7 @@ class PostHogCoreStateless {
      * @param {boolean} [debug] If true, will enable debug mode.
      */
     debug(enabled = true) {
-        var _a;
-        (_a = this.removeDebugCallback) === null || _a === void 0 ? void 0 : _a.call(this);
+        this.removeDebugCallback?.();
         if (enabled) {
             const removeDebugCallback = this.on('*', (event, payload) => this._logger.info(event, payload));
             this.removeDebugCallback = () => {
@@ -327,7 +346,7 @@ class PostHogCoreStateless {
         // Don't retry /flags API calls
         return this.fetchWithRetry(url, fetchOptions, { retryCount: 0 }, this.featureFlagsRequestTimeoutMs)
             .then((response) => response.json())
-            .then((response) => (0, featureFlagUtils_1.normalizeFlagsResponse)(response))
+            .then((response) => normalizeFlagsResponse(response))
             .catch((error) => {
             this._events.emit('error', error);
             return undefined;
@@ -343,7 +362,7 @@ class PostHogCoreStateless {
                 requestId: undefined,
             };
         }
-        let response = (0, featureFlagUtils_1.getFeatureFlagValue)(flagDetailResponse.response);
+        let response = getFeatureFlagValue(flagDetailResponse.response);
         if (response === undefined) {
             // For cases where the flag is unknown, return false
             response = false;
@@ -406,10 +425,9 @@ class PostHogCoreStateless {
         };
     }
     async getFeatureFlagDetailsStateless(distinctId, groups = {}, personProperties = {}, groupProperties = {}, disableGeoip, flagKeysToEvaluate) {
-        var _a;
         await this._initPromise;
         const extraPayload = {};
-        if (disableGeoip !== null && disableGeoip !== void 0 ? disableGeoip : this.disableGeoip) {
+        if (disableGeoip ?? this.disableGeoip) {
             extraPayload['geoip_disable'] = true;
         }
         if (flagKeysToEvaluate) {
@@ -425,13 +443,13 @@ class PostHogCoreStateless {
             console.error('[FEATURE FLAGS] Error while computing feature flags, some flags may be missing or incorrect. Learn more at https://posthog.com/docs/feature-flags/best-practices');
         }
         // Add check for quota limitation on feature flags
-        if ((_a = flagsResponse.quotaLimited) === null || _a === void 0 ? void 0 : _a.includes(QuotaLimitedFeature.FeatureFlags)) {
+        if (flagsResponse.quotaLimited?.includes(QuotaLimitedFeature.FeatureFlags)) {
             console.warn('[FEATURE FLAGS] Feature flags quota limit exceeded - feature flags unavailable. Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts');
             return {
                 flags: {},
                 featureFlags: {},
                 featureFlagPayloads: {},
-                requestId: flagsResponse === null || flagsResponse === void 0 ? void 0 : flagsResponse.requestId,
+                requestId: flagsResponse?.requestId,
             };
         }
         return flagsResponse;
@@ -466,15 +484,19 @@ class PostHogCoreStateless {
             this._events.emit('error', error);
             return undefined;
         });
-        const newSurveys = response === null || response === void 0 ? void 0 : response.surveys;
+        const newSurveys = response?.surveys;
         if (newSurveys) {
             this._logger.info('Surveys fetched from API: ', JSON.stringify(newSurveys));
         }
-        return newSurveys !== null && newSurveys !== void 0 ? newSurveys : [];
+        return newSurveys ?? [];
     }
+    /***
+     *** SUPER PROPERTIES
+     ***/
+    _props;
     get props() {
         if (!this._props) {
-            this._props = this.getPersistedProperty(types_1.PostHogPersistedProperty.Props);
+            this._props = this.getPersistedProperty(PostHogPersistedProperty.Props);
         }
         return this._props || {};
     }
@@ -487,13 +509,13 @@ class PostHogCoreStateless {
                 ...this.props,
                 ...properties,
             };
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.Props, this.props);
+            this.setPersistedProperty(PostHogPersistedProperty.Props, this.props);
         });
     }
     async unregister(property) {
         this.wrap(() => {
             delete this.props[property];
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.Props, this.props);
+            this.setPersistedProperty(PostHogPersistedProperty.Props, this.props);
         });
     }
     /***
@@ -506,20 +528,20 @@ class PostHogCoreStateless {
                 return;
             }
             const message = this.prepareMessage(type, _message, options);
-            const queue = this.getPersistedProperty(types_1.PostHogPersistedProperty.Queue) || [];
+            const queue = this.getPersistedProperty(PostHogPersistedProperty.Queue) || [];
             if (queue.length >= this.maxQueueSize) {
                 queue.shift();
                 this._logger.info('Queue is full, the oldest event is dropped.');
             }
             queue.push({ message });
-            this.setPersistedProperty(types_1.PostHogPersistedProperty.Queue, queue);
+            this.setPersistedProperty(PostHogPersistedProperty.Queue, queue);
             this._events.emit(type, message);
             // Flush queued events if we meet the flushAt length
             if (queue.length >= this.flushAt) {
                 this.flushBackground();
             }
             if (this.flushInterval && !this._flushTimer) {
-                this._flushTimer = (0, utils_1.safeSetTimeout)(() => this.flushBackground(), this.flushInterval);
+                this._flushTimer = safeSetTimeout(() => this.flushBackground(), this.flushInterval);
             }
         });
     }
@@ -538,14 +560,14 @@ class PostHogCoreStateless {
         const data = {
             api_key: this.apiKey,
             batch: [this.prepareMessage(type, _message, options)],
-            sent_at: (0, utils_1.currentISOTime)(),
+            sent_at: currentISOTime(),
         };
         if (this.historicalMigration) {
             data.historical_migration = true;
         }
         const payload = JSON.stringify(data);
         const url = `${this.host}/batch/`;
-        const gzippedPayload = !this.disableCompression ? await (0, gzip_1.gzipCompress)(payload, this.isDebug) : null;
+        const gzippedPayload = !this.disableCompression ? await gzipCompress(payload, this.isDebug) : null;
         const fetchOptions = {
             method: 'POST',
             headers: {
@@ -563,16 +585,15 @@ class PostHogCoreStateless {
         }
     }
     prepareMessage(type, _message, options) {
-        var _a;
         const message = {
             ..._message,
             type: type,
             library: this.getLibraryId(),
             library_version: this.getLibraryVersion(),
-            timestamp: (options === null || options === void 0 ? void 0 : options.timestamp) ? options === null || options === void 0 ? void 0 : options.timestamp : (0, utils_1.currentISOTime)(),
-            uuid: (options === null || options === void 0 ? void 0 : options.uuid) ? options.uuid : (0, uuidv7_1.uuidv7)(),
+            timestamp: options?.timestamp ? options?.timestamp : currentISOTime(),
+            uuid: options?.uuid ? options.uuid : uuidv7(),
         };
-        const addGeoipDisableProperty = (_a = options === null || options === void 0 ? void 0 : options.disableGeoip) !== null && _a !== void 0 ? _a : this.disableGeoip;
+        const addGeoipDisableProperty = options?.disableGeoip ?? this.disableGeoip;
         if (addGeoipDisableProperty) {
             if (!message.properties) {
                 message.properties = {};
@@ -632,12 +653,12 @@ class PostHogCoreStateless {
         // Wait for the current flush operation to finish (regardless of success or failure), then try to flush again.
         // Use allSettled instead of finally to be defensive around flush throwing errors immediately rather than rejecting.
         // Use a custom allSettled implementation to avoid issues with patching Promise on RN
-        const nextFlushPromise = (0, utils_1.allSettled)([this.flushPromise]).then(() => {
+        const nextFlushPromise = allSettled([this.flushPromise]).then(() => {
             return this._flush();
         });
         this.flushPromise = nextFlushPromise;
         void this.addPendingPromise(nextFlushPromise);
-        (0, utils_1.allSettled)([nextFlushPromise]).then(() => {
+        allSettled([nextFlushPromise]).then(() => {
             // If there are no others waiting to flush, clear the promise.
             // We don't strictly need to do this, but it could make debugging easier
             if (this.flushPromise === nextFlushPromise) {
@@ -661,7 +682,7 @@ class PostHogCoreStateless {
     async _flush() {
         this.clearFlushTimer();
         await this._initPromise;
-        let queue = this.getPersistedProperty(types_1.PostHogPersistedProperty.Queue) || [];
+        let queue = this.getPersistedProperty(PostHogPersistedProperty.Queue) || [];
         if (!queue.length) {
             return;
         }
@@ -671,22 +692,22 @@ class PostHogCoreStateless {
             const batchItems = queue.slice(0, this.maxBatchSize);
             const batchMessages = batchItems.map((item) => item.message);
             const persistQueueChange = () => {
-                const refreshedQueue = this.getPersistedProperty(types_1.PostHogPersistedProperty.Queue) || [];
+                const refreshedQueue = this.getPersistedProperty(PostHogPersistedProperty.Queue) || [];
                 const newQueue = refreshedQueue.slice(batchItems.length);
-                this.setPersistedProperty(types_1.PostHogPersistedProperty.Queue, newQueue);
+                this.setPersistedProperty(PostHogPersistedProperty.Queue, newQueue);
                 queue = newQueue;
             };
             const data = {
                 api_key: this.apiKey,
                 batch: batchMessages,
-                sent_at: (0, utils_1.currentISOTime)(),
+                sent_at: currentISOTime(),
             };
             if (this.historicalMigration) {
                 data.historical_migration = true;
             }
             const payload = JSON.stringify(data);
             const url = `${this.host}/batch/`;
-            const gzippedPayload = !this.disableCompression ? await (0, gzip_1.gzipCompress)(payload, this.isDebug) : null;
+            const gzippedPayload = !this.disableCompression ? await gzipCompress(payload, this.isDebug) : null;
             const fetchOptions = {
                 method: 'POST',
                 headers: {
@@ -731,14 +752,12 @@ class PostHogCoreStateless {
         this._events.emit('flush', sentMessages);
     }
     async fetchWithRetry(url, options, retryOptions, requestTimeout) {
-        var _a;
-        var _b;
         ;
-        (_a = (_b = AbortSignal).timeout) !== null && _a !== void 0 ? _a : (_b.timeout = function timeout(ms) {
+        AbortSignal.timeout ??= function timeout(ms) {
             const ctrl = new AbortController();
             setTimeout(() => ctrl.abort(), ms);
             return ctrl.signal;
-        });
+        };
         const body = options.body ? options.body : '';
         let reqByteLength = -1;
         try {
@@ -746,7 +765,7 @@ class PostHogCoreStateless {
                 reqByteLength = body.size;
             }
             else {
-                reqByteLength = Buffer.byteLength(body, utils_1.STRING_FORMAT);
+                reqByteLength = Buffer.byteLength(body, STRING_FORMAT);
             }
         }
         catch {
@@ -758,11 +777,11 @@ class PostHogCoreStateless {
                 reqByteLength = encoded.length;
             }
         }
-        return await (0, utils_1.retriable)(async () => {
+        return await retriable(async () => {
             let res = null;
             try {
                 res = await this.fetch(url, {
-                    signal: AbortSignal.timeout(requestTimeout !== null && requestTimeout !== void 0 ? requestTimeout : this.requestTimeout),
+                    signal: AbortSignal.timeout(requestTimeout ?? this.requestTimeout),
                     ...options,
                 });
             }
@@ -790,7 +809,7 @@ class PostHogCoreStateless {
             try {
                 await this.promiseQueue.join();
                 while (true) {
-                    const queue = this.getPersistedProperty(types_1.PostHogPersistedProperty.Queue) || [];
+                    const queue = this.getPersistedProperty(PostHogPersistedProperty.Queue) || [];
                     if (queue.length === 0) {
                         break;
                     }
@@ -812,7 +831,7 @@ class PostHogCoreStateless {
         };
         return Promise.race([
             new Promise((_, reject) => {
-                (0, utils_1.safeSetTimeout)(() => {
+                safeSetTimeout(() => {
                     this._logger.error('Timed out while shutting down PostHog');
                     hasTimedOut = true;
                     reject('Timeout while shutting down PostHog. Some events may not have been sent.');
@@ -856,5 +875,3 @@ class PostHogCoreStateless {
         return this.shutdownPromise;
     }
 }
-exports.PostHogCoreStateless = PostHogCoreStateless;
-//# sourceMappingURL=posthog-core-stateless.js.map

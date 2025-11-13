@@ -32,3 +32,4 @@ export declare const parsePayload: (response: any) => any;
  */
 export declare const createFlagsResponseFromFlagsAndPayloads: (featureFlags: PostHogV1FlagsResponse["featureFlags"], featureFlagPayloads: PostHogV1FlagsResponse["featureFlagPayloads"]) => PostHogFeatureFlagsResponse;
 export declare const updateFlagValue: (flag: FeatureFlagDetail, value: FeatureFlagValue) => FeatureFlagDetail;
+//# sourceMappingURL=featureFlagUtils.d.ts.map

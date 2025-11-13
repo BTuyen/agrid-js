@@ -1,8 +1,5 @@
-"use strict";
 // vendor from: https://github.com/LiosK/uuidv7/blob/f30b7a7faff73afbce0b27a46c638310f96912ba/src/index.ts
 // https://github.com/LiosK/uuidv7#license
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.uuidv4obj = exports.uuidv4 = exports.uuidv7obj = exports.uuidv7 = exports.V7Generator = exports.UUID = void 0;
 /**
  * uuidv7: An experimental implementation of the proposed UUID Version 7
  *
@@ -12,7 +9,8 @@ exports.uuidv4obj = exports.uuidv4 = exports.uuidv7obj = exports.uuidv7 = export
  */
 const DIGITS = "0123456789abcdef";
 /** Represents a UUID as a 16-byte byte array. */
-class UUID {
+export class UUID {
+    bytes;
     /** @param bytes - The 16-byte byte array representation. */
     constructor(bytes) {
         this.bytes = bytes;
@@ -52,10 +50,10 @@ class UUID {
             randA < 0 ||
             randBHi < 0 ||
             randBLo < 0 ||
-            unixTsMs > 281474976710655 ||
+            unixTsMs > 0xffff_ffff_ffff ||
             randA > 0xfff ||
-            randBHi > 1073741823 ||
-            randBLo > 4294967295) {
+            randBHi > 0x3fff_ffff ||
+            randBLo > 0xffff_ffff) {
             throw new RangeError("invalid field value");
         }
         const bytes = new Uint8Array(16);
@@ -92,26 +90,31 @@ class UUID {
      * @throws SyntaxError if the argument could not parse as a valid UUID string.
      */
     static parse(uuid) {
-        var _a, _b, _c, _d;
         let hex = undefined;
         switch (uuid.length) {
             case 32:
-                hex = (_a = /^[0-9a-f]{32}$/i.exec(uuid)) === null || _a === void 0 ? void 0 : _a[0];
+                hex = /^[0-9a-f]{32}$/i.exec(uuid)?.[0];
                 break;
             case 36:
                 hex =
-                    (_b = /^([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/i
-                        .exec(uuid)) === null || _b === void 0 ? void 0 : _b.slice(1, 6).join("");
+                    /^([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/i
+                        .exec(uuid)
+                        ?.slice(1, 6)
+                        .join("");
                 break;
             case 38:
                 hex =
-                    (_c = /^\{([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})\}$/i
-                        .exec(uuid)) === null || _c === void 0 ? void 0 : _c.slice(1, 6).join("");
+                    /^\{([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})\}$/i
+                        .exec(uuid)
+                        ?.slice(1, 6)
+                        .join("");
                 break;
             case 45:
                 hex =
-                    (_d = /^urn:uuid:([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/i
-                        .exec(uuid)) === null || _d === void 0 ? void 0 : _d.slice(1, 6).join("");
+                    /^urn:uuid:([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/i
+                        .exec(uuid)
+                        ?.slice(1, 6)
+                        .join("");
                 break;
             default:
                 break;
@@ -220,7 +223,6 @@ class UUID {
         return 0;
     }
 }
-exports.UUID = UUID;
 /**
  * Encapsulates the monotonic counter state.
  *
@@ -230,16 +232,18 @@ exports.UUID = UUID;
  * that is useful to absolutely guarantee the monotonically increasing order of
  * generated UUIDs. See their respective documentation for details.
  */
-class V7Generator {
+export class V7Generator {
+    timestamp = 0;
+    counter = 0;
+    /** The random number generator used by the generator. */
+    random;
     /**
      * Creates a generator object with the default random number generator, or
      * with the specified one if passed as an argument. The specified random
      * number generator should be cryptographically strong and securely seeded.
      */
     constructor(randomNumberGenerator) {
-        this.timestamp = 0;
-        this.counter = 0;
-        this.random = randomNumberGenerator !== null && randomNumberGenerator !== void 0 ? randomNumberGenerator : getDefaultRandom();
+        this.random = randomNumberGenerator ?? getDefaultRandom();
     }
     /**
      * Generates a new UUIDv7 object from the current timestamp, or resets the
@@ -256,7 +260,7 @@ class V7Generator {
      * {@link generateOrResetCore} for the low-level primitive.
      */
     generate() {
-        return this.generateOrResetCore(Date.now(), 10000);
+        return this.generateOrResetCore(Date.now(), 10_000);
     }
     /**
      * Generates a new UUIDv7 object from the current timestamp, or returns
@@ -272,7 +276,7 @@ class V7Generator {
      * {@link generateOrAbortCore} for the low-level primitive.
      */
     generateOrAbort() {
-        return this.generateOrAbortCore(Date.now(), 10000);
+        return this.generateOrAbortCore(Date.now(), 10_000);
     }
     /**
      * Generates a new UUIDv7 object from the `unixTsMs` passed, or resets the
@@ -306,13 +310,13 @@ class V7Generator {
      * @throws RangeError if `unixTsMs` is not a 48-bit positive integer.
      */
     generateOrAbortCore(unixTsMs, rollbackAllowance) {
-        const MAX_COUNTER = 4398046511103;
+        const MAX_COUNTER = 0x3ff_ffff_ffff;
         if (!Number.isInteger(unixTsMs) ||
             unixTsMs < 1 ||
-            unixTsMs > 281474976710655) {
+            unixTsMs > 0xffff_ffff_ffff) {
             throw new RangeError("`unixTsMs` must be a 48-bit positive integer");
         }
-        else if (rollbackAllowance < 0 || rollbackAllowance > 281474976710655) {
+        else if (rollbackAllowance < 0 || rollbackAllowance > 0xffff_ffff_ffff) {
             throw new RangeError("`rollbackAllowance` out of reasonable range");
         }
         if (unixTsMs > this.timestamp) {
@@ -351,7 +355,6 @@ class V7Generator {
         return UUID.ofInner(bytes);
     }
 }
-exports.V7Generator = V7Generator;
 /** A global flag to force use of cryptographically strong RNG. */
 // declare const UUIDV7_DENY_WEAK_RNG: boolean;
 /** Returns the default random number generator available in the environment. */
@@ -375,8 +378,8 @@ const getDefaultRandom = () => {
     //     };
     //   }
     return {
-        nextUint32: () => Math.trunc(Math.random() * 65536) * 65536 +
-            Math.trunc(Math.random() * 65536),
+        nextUint32: () => Math.trunc(Math.random() * 0x1_0000) * 0x1_0000 +
+            Math.trunc(Math.random() * 0x1_0000),
     };
 };
 // /**
@@ -402,20 +405,15 @@ let defaultGenerator;
  * @returns The 8-4-4-4-12 canonical hexadecimal string representation
  * ("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
  */
-const uuidv7 = () => (0, exports.uuidv7obj)().toString();
-exports.uuidv7 = uuidv7;
+export const uuidv7 = () => uuidv7obj().toString();
 /** Generates a UUIDv7 object. */
-const uuidv7obj = () => (defaultGenerator || (defaultGenerator = new V7Generator())).generate();
-exports.uuidv7obj = uuidv7obj;
+export const uuidv7obj = () => (defaultGenerator || (defaultGenerator = new V7Generator())).generate();
 /**
  * Generates a UUIDv4 string.
  *
  * @returns The 8-4-4-4-12 canonical hexadecimal string representation
  * ("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
  */
-const uuidv4 = () => (0, exports.uuidv4obj)().toString();
-exports.uuidv4 = uuidv4;
+export const uuidv4 = () => uuidv4obj().toString();
 /** Generates a UUIDv4 object. */
-const uuidv4obj = () => (defaultGenerator || (defaultGenerator = new V7Generator())).generateV4();
-exports.uuidv4obj = uuidv4obj;
-//# sourceMappingURL=uuidv7.js.map
+export const uuidv4obj = () => (defaultGenerator || (defaultGenerator = new V7Generator())).generateV4();

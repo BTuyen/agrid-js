@@ -7,3 +7,4 @@ export declare class DOMExceptionCoercer implements ErrorTrackingCoercer<DOMExce
     private isDOMException;
     private isDOMError;
 }
+//# sourceMappingURL=dom-exception-coercer.d.ts.map

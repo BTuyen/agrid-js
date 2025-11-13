@@ -15,3 +15,4 @@ export declare class ErrorPropertiesBuilder {
     private buildParsingContext;
     private buildCoercingContext;
 }
+//# sourceMappingURL=error-properties-builder.d.ts.map

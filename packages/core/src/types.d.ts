@@ -465,3 +465,4 @@ export declare const knownUnsafeEditableEvent: readonly ["$snapshot", "$pageview
  */
 export type KnownUnsafeEditableEvent = (typeof knownUnsafeEditableEvent)[number];
 export {};
+//# sourceMappingURL=types.d.ts.map

@@ -1,15 +1,15 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ErrorPropertiesBuilder = void 0;
-const utils_1 = require("@/utils");
-const chunk_ids_1 = require("./chunk-ids");
-const parsers_1 = require("./parsers");
+import { isArray } from '@/utils';
+import { getFilenameToChunkIdMap } from './chunk-ids';
+import { createStackParser } from './parsers';
 const MAX_CAUSE_RECURSION = 4;
-class ErrorPropertiesBuilder {
+export class ErrorPropertiesBuilder {
+    coercers;
+    modifiers;
+    stackParser;
     constructor(coercers = [], parsers = [], modifiers = []) {
         this.coercers = coercers;
         this.modifiers = modifiers;
-        this.stackParser = (0, parsers_1.createStackParser)(...parsers);
+        this.stackParser = createStackParser(...parsers);
     }
     buildFromUnknown(input, hint = {}) {
         const providedMechanism = hint && hint.mechanism;
@@ -29,18 +29,17 @@ class ErrorPropertiesBuilder {
     }
     async modifyFrames(exceptionList) {
         for (const exc of exceptionList) {
-            if (exc.stacktrace && exc.stacktrace.frames && (0, utils_1.isArray)(exc.stacktrace.frames)) {
+            if (exc.stacktrace && exc.stacktrace.frames && isArray(exc.stacktrace.frames)) {
                 exc.stacktrace.frames = await this.applyModifiers(exc.stacktrace.frames);
             }
         }
         return exceptionList;
     }
     coerceFallback(ctx) {
-        var _a;
         return {
             type: 'Error',
             value: 'Unknown error',
-            stack: (_a = ctx.syntheticException) === null || _a === void 0 ? void 0 : _a.stack,
+            stack: ctx.syntheticException?.stack,
             synthetic: true,
         };
     }
@@ -79,14 +78,13 @@ class ErrorPropertiesBuilder {
         return newFrames;
     }
     convertToExceptionList(exceptionWithStack, mechanism) {
-        var _a, _b, _c;
         const currentException = {
             type: exceptionWithStack.type,
             value: exceptionWithStack.value,
             mechanism: {
-                type: (_a = mechanism.type) !== null && _a !== void 0 ? _a : 'generic',
-                handled: (_b = mechanism.handled) !== null && _b !== void 0 ? _b : true,
-                synthetic: (_c = exceptionWithStack.synthetic) !== null && _c !== void 0 ? _c : false,
+                type: mechanism.type ?? 'generic',
+                handled: mechanism.handled ?? true,
+                synthetic: exceptionWithStack.synthetic ?? false,
             },
         };
         if (exceptionWithStack.stack) {
@@ -107,7 +105,7 @@ class ErrorPropertiesBuilder {
     }
     buildParsingContext() {
         const context = {
-            chunkIdMap: (0, chunk_ids_1.getFilenameToChunkIdMap)(this.stackParser),
+            chunkIdMap: getFilenameToChunkIdMap(this.stackParser),
         };
         return context;
     }
@@ -136,5 +134,3 @@ class ErrorPropertiesBuilder {
         return context;
     }
 }
-exports.ErrorPropertiesBuilder = ErrorPropertiesBuilder;
-//# sourceMappingURL=error-properties-builder.js.map

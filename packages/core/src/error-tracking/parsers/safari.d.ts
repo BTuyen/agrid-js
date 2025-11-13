@@ -19,3 +19,4 @@
  * and fix this case seems like an impossible, or at least way too time-consuming task.
  */
 export declare const extractSafariExtensionDetails: (func: string, filename: string) => [string, string];
+//# sourceMappingURL=safari.d.ts.map
