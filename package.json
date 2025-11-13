@@ -17,12 +17,11 @@
         "url": "https://github.com/BTuyen/agrid-js.git"
     },
     "publishConfig": {
-        "access": "public",
-        "provenance": true
+        "access": "public"
     },
     "packageManager": "pnpm@10.12.4",
     "scripts": {
-        "build": "turbo build && npm run copy-dist",
+        "build": "turbo --filter=@agrid/core build && npm run copy-dist",
         "copy-dist": "mkdir -p dist && cp -r packages/core/dist/* dist/",
         "prepublishOnly": "npm run build",
         "build-rollup": "pnpm --filter=@agrid/browser build-rollup",
