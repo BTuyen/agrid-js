@@ -1,6 +1,6 @@
 {
     "name": "@agrid-js/core",
-    "version": "1.5.2",
+    "version": "1.5.3",
     "description": "Agrid JS core package - Monorepo containing multiple Agrid JavaScript SDKs",
     "main": "dist/index.js",
     "module": "dist/index.mjs",
