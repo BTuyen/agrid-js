@@ -1,6 +1,6 @@
 {
     "name": "agrid-js",
-    "version": "1.5.5",
+    "version": "1.5.6",
     "description": "Agrid JS - Monorepo containing multiple Agrid JavaScript SDKs",
     "main": "dist/index.js",
     "module": "dist/index.mjs",
